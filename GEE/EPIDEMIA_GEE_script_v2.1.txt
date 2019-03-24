@@ -1,0 +1,642 @@
+var trmm_3b42 = ee.ImageCollection("TRMM/3B42"),
+    gpm = ee.ImageCollection("NASA/GPM_L3/IMERG_V05"),
+    woreda = ee.FeatureCollection("users/mcwimberly/amhara_woredas_geo"),
+    brdf_reflect = ee.ImageCollection("MODIS/006/MCD43A4"),
+    lst_terra8 = ee.ImageCollection("MODIS/006/MOD11A2"),
+    brdf_qa = ee.ImageCollection("MODIS/006/MCD43A2");
+
+////////////////////////////////////////////////////////////////////////////////
+// EPIDEMIA Data Downloader (Version 2.1)
+// Coded by Dr. Mike Wimberly
+// University of Oklahoma, Department of Geography and Environmental Sustainability
+// mcwimberly@ou.edu 
+// Version 2.1 Released February 11, 2019
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 1: Define the global parameters for the script
+////////////////////////////////////////////////////////////////////////////////
+ 
+// Center the Map
+Map.setCenter(38, 11.5, 7);
+
+// Start and end dates for the data summary
+// GEE will slow down and run out of memory if we make this date range too large
+// These lines of code can be modified to access older data
+var startdate = ee.Date('2012-01-01');
+var enddate = ee.Date('2019-12-31');
+
+// Print information to the console
+print("Start date to process: ", startdate);
+print("End date to process: ", enddate);
+
+// Create list of dates for time series
+var n_days = enddate.difference(startdate, 'day');
+var dates = ee.List.sequence(0, n_days, 1);
+var make_datelist = function(n) {
+  return startdate.advance(n, 'day');
+};
+dates = dates.map(make_datelist);
+ 
+////////////////////////////////////////////////////////////////////////////////
+// Step 2: Calculate precipitation variables, join TRMM and GPM
+////////////////////////////////////////////////////////////////////////////////
+
+// Filter trmm and gpm by date
+var trmm_filt = trmm_3b42
+  .filterDate(startdate, enddate.advance(1, 'day'))
+  .select('precipitation');
+
+var gpm_filt = gpm
+  .filterDate(startdate, enddate.advance(1, 'day'))
+  .select('precipitationCal');
+
+// Calculate date of most recent measurement for trmm and gpm
+var trmm_max = trmm_filt.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
+var trmm_edate =  ee.Date(trmm_max.get('max'));
+var gpm_max = gpm_filt.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
+var gpm_edate =  ee.Date(gpm_max.get('max'));
+
+// Determine date of most recent measurement (trmm or gpm)
+var prec_edate = ee.Date(ee.Algorithms.If(
+    ee.DateRange('1999-01-01', '2014-03-12').contains(enddate),
+    trmm_edate,
+    gpm_edate
+));
+
+// Create list of dates for the precipitation time series
+var prec_days = prec_edate.difference(startdate, 'day');
+var prec_dates = ee.List.sequence(0, prec_days, 1);
+var make_precdates = function(n) {
+  return startdate.advance(n, 'day');
+};
+prec_dates = prec_dates.map(make_precdates);
+ 
+////////////////////////////////////////////////////////////////////////////////
+// Step 3: Calculate LST variables
+////////////////////////////////////////////////////////////////////////////////
+ 
+// Filter Terra LST by date
+var lst_terra_filt = lst_terra8
+  .filterDate(startdate, enddate.advance(1, 'day'))
+  .filterBounds(woreda)
+  .select('LST_Day_1km', 'QC_Day', 'LST_Night_1km', 'QC_Night');
+
+// Filter Terra LST by QA information
+var lst_filter = function(image) {
+  var qaday = image.select(['QC_Day']); 
+  var qanight = image.select(['QC_Night']); 
+  var dayshift = qaday.rightShift(6);
+  var nightshift = qanight.rightShift(6);
+  var daymask = dayshift.lte(2);
+  var nightmask = nightshift.lte(2);
+  //var dayshift1 = qaday.leftShift(6);
+  //var dayshift2 = qaday.rightShift(6);
+  //var daymask = dayshift2.eq(0);
+  //var nightshift1 = qanight.leftShift(6);
+  //var nightshift2 = qanight.rightShift(6);
+  //var nightmask = nightshift2.eq(0);  
+  var outimage = ee.Image(image.select(['LST_Day_1km', 'LST_Night_1km']));
+  var outmask = ee.Image([daymask, nightmask]);
+  return outimage.updateMask(outmask);    
+};
+
+var lst_terra_filt = lst_terra_filt.map(lst_filter);
+
+// Rescale temperature data and convert to degrees C
+var lst_terra_calc = function(image) {
+  var lst_day = image.select('LST_Day_1km').multiply(0.02).subtract(273.15).rename('lst_day');
+  var lst_night = image.select('LST_Night_1km').multiply(0.02).subtract(273.15).rename('lst_night');
+  var lst_mean = image.expression(
+    '(day + night) / 2', {
+      'day': lst_day.select('lst_day'),
+      'night': lst_night.select('lst_night')
+    }
+  ).rename('lst_mean');
+  return image.addBands(lst_day)
+              .addBands(lst_night)
+              .addBands(lst_mean);
+};
+
+// Map function over image collection
+var lst_terra_vars = lst_terra_filt.map(lst_terra_calc);
+
+// Create list of dates for time series
+var lst_range = lst_terra_vars.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
+var lst_edate = ee.Date(lst_range.get('max')).advance(7, 'day');
+var lst_days = lst_edate.difference(startdate, 'day');
+var lst_dates = ee.List.sequence(0, lst_days, 1);
+var make_lstdates = function(n) {
+  return startdate.advance(n, 'day');
+};
+var lst_dates = lst_dates.map(make_lstdates);
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 4: Calculate spectral indices
+////////////////////////////////////////////////////////////////////////////////
+
+// Filter BRDF-Adjusted Reflectance by Date
+var brdf_reflect_vars = brdf_reflect
+  .filterDate(startdate, enddate.advance(1, 'day'))
+  .filterBounds(woreda)
+  .select(['Nadir_Reflectance_Band1','Nadir_Reflectance_Band2','Nadir_Reflectance_Band3',
+          'Nadir_Reflectance_Band4','Nadir_Reflectance_Band5','Nadir_Reflectance_Band6',
+          'Nadir_Reflectance_Band7'],
+          ['red', 'nir', 'blue', 'green', 'swir1', 'swir2', 'swir3']);
+
+// Filter BRDF QA by Date
+var brdf_reflect_qa = brdf_qa
+  .filterDate(startdate, enddate.advance(1, 'day'))
+  .filterBounds(woreda)
+  .select(['BRDF_Albedo_Band_Quality_Band1', 'BRDF_Albedo_Band_Quality_Band2', 'BRDF_Albedo_Band_Quality_Band3',
+          'BRDF_Albedo_Band_Quality_Band4', 'BRDF_Albedo_Band_Quality_Band5', 'BRDF_Albedo_Band_Quality_Band6',
+          'BRDF_Albedo_Band_Quality_Band7', 'BRDF_Albedo_LandWaterType'],
+          ['qa1', 'qa2', 'qa3', 'qa4', 'qa5', 'qa6', 'qa7', 'water']);
+
+// Join the 2 collections
+var idJoin = ee.Filter.equals({leftField: 'system:time_end', rightField: 'system:time_end'});
+// Define the join
+var innerJoin = ee.Join.inner('NBAR', 'QA');
+// Apply the join
+var combinedCol = innerJoin.apply(brdf_reflect_vars, brdf_reflect_qa, idJoin);
+
+// Add QA bands to the NBAR collection
+var addQABands = function(image){
+    var nbar = ee.Image(image.get('NBAR'));
+    var qa = ee.Image(image.get('QA')).select(['qa2']);
+    var water = ee.Image(image.get('QA')).select(['water']);
+    return nbar.addBands([qa, water]);
+};
+
+var mergedCol = ee.ImageCollection(combinedCol.map(addQABands));
+
+// Function to mask out pixels based on qa and water/land flags 
+var brdf_filter = function(image) {
+  var qaband = image.select(['qa2']); // Right now, only using QA info for the NIR band
+  var wband = image.select(['water']);
+  var qamask = qaband.lte(2).and(wband.eq(1));
+  var nir_r = image.select('nir').multiply(0.0001).rename('nir_r');
+  var red_r = image.select('red').multiply(0.0001).rename('red_r');
+  var swir1_r = image.select('swir1').multiply(0.0001).rename('swir1_r');
+  var swir2_r = image.select('swir2').multiply(0.0001).rename('swir2_r');
+  var blue_r = image.select('blue').multiply(0.0001).rename('blue_r');
+  return image.addBands(nir_r)
+              .addBands(red_r)
+              .addBands(swir1_r)
+              .addBands(swir2_r)
+              .addBands(blue_r)
+              .updateMask(qamask);  
+};
+
+var brdf_filter_vars = mergedCol.map(brdf_filter);
+
+// Function to calculate spectral indices
+var brdf_reflect_calc = function(image) {
+  var curyear = ee.Date(image.get("system:time_start")).get('year');
+  var curdoy = ee.Date(image.get("system:time_start")).getRelative('day', 'year').add(1);
+  var ndvi = image.normalizedDifference(['nir_r', 'red_r'])
+                  .rename('ndvi');
+  var savi = image.expression(
+    '1.5 * (nir - red) / (nir + red + 0.5)', {
+      'nir': image.select('nir_r'),
+      'red': image.select('red_r')
+    }
+  ).rename('savi');
+  var evi = image.expression(
+    '2.5 * (nir - red) / (nir + 6 * red - 7.5 * blue + 1)', {
+      'nir': image.select('nir_r'),
+      'red': image.select('red_r'),
+      'blue': image.select('blue_r')
+    }
+  ).rename('evi');
+  var ndwi5 = image.normalizedDifference(['nir_r', 'swir1_r'])
+                  .rename('ndwi5');
+  var ndwi6 = image.normalizedDifference(['nir_r', 'swir2_r'])
+                  .rename('ndwi6');
+  return image.addBands(ndvi)
+              .addBands(savi)
+              .addBands(evi)
+              .addBands(ndwi5)
+              .addBands(ndwi6)
+              .set('doy', curdoy)
+              .set('year', curyear);
+};
+
+// Map function over image collection
+brdf_filter_vars = brdf_filter_vars.map(brdf_reflect_calc);
+
+// Create list of dates for time series
+var brdf_range = brdf_filter_vars.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
+var brdf_edate = ee.Date(brdf_range.get('max'));
+var brdf_days = brdf_edate.difference(startdate, 'day');
+var brdf_dates = ee.List.sequence(0, brdf_days, 1);
+var make_brdfdates = function(n) {
+  return startdate.advance(n, 'day');
+};
+var brdf_dates = brdf_dates.map(make_brdfdates);
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 5: Calculate daily precipitation
+////////////////////////////////////////////////////////////////////////////////
+
+// Function to calculate daily precipitation
+var proc_prec = function (curdate) {
+    var curyear = ee.Date(curdate).get('year');
+    var curdoy = ee.Date(curdate).getRelative('day', 'year').add(1);
+    var totprec = ee.Image(ee.Algorithms.If(
+        ee.DateRange(ee.Date('1900-01-01'), ee.Date('2014-03-12')).contains(curdate),
+        trmm_filt.select('precipitation')
+                 .filterDate(ee.Date(curdate), ee.Date(curdate).advance(1, 'day'))
+                 .sum()
+                 .multiply(3)
+                 .rename('totprec'),
+        gpm_filt.select('precipitationCal')
+                .filterDate(ee.Date(curdate), ee.Date(curdate).advance(1, 'day'))
+                .sum()
+                .multiply(0.5)
+                .rename('totprec')
+    ));
+    //var lst_day_c = lst_day.select('lst_day').subtract(ee.Image(273.15));
+    return totprec
+        .set('doy', curdoy)
+        .set('year', curyear)
+        .set('system:time_start', curdate);
+};
+
+// Map function over list of dates
+var daily_prec = ee.ImageCollection.fromImages(prec_dates.map(proc_prec));
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 6: Calculate daily LST
+////////////////////////////////////////////////////////////////////////////////
+
+// Function to calculate daily LST by assigning the 8-day composite summary to each day 
+// in the composite period
+var proc_lst = function (curdate) {
+    var curyear = ee.Date(curdate).get('year');
+    var curdoy = ee.Date(curdate).getRelative('day', 'year').add(1);
+    var moddoy = curdoy.divide(8).ceil().subtract(1).multiply(8).add(1);
+    var basedate = ee.Date.fromYMD(curyear, 1, 1);
+    var moddate = basedate.advance(moddoy.subtract(1), 'day');
+    var lst_day = lst_terra_vars
+                     .select('lst_day')
+                     .filterDate(moddate, moddate.advance(1, 'day'))
+                     .first()
+                     .rename('lst_day');    
+    var lst_night = lst_terra_vars
+                     .select('lst_night')
+                     .filterDate(moddate, moddate.advance(1, 'day'))
+                     //.filter(ee.Filter.calendarRange(curyear, curyear, 'year'))
+                     //.filter(ee.Filter.calendarRange(moddoy, moddoy, 'day_of_year'))
+                     .first()
+                     .rename('lst_night');   
+    var lst_mean = lst_terra_vars
+                     .select('lst_mean')
+                     .filterDate(moddate, moddate.advance(1, 'day'))
+                     //.filter(ee.Filter.calendarRange(curyear, curyear, 'year'))
+                     //.filter(ee.Filter.calendarRange(moddoy, moddoy, 'day_of_year'))
+                     .first()
+                     .rename('lst_mean');   
+    return lst_day
+        .addBands(lst_night)
+        .addBands(lst_mean)
+        .set('doy', curdoy)
+        .set('year', curyear)
+        .set('system:time_start', curdate);
+};
+
+// Map the function over the image collection
+var daily_lst = ee.ImageCollection.fromImages(lst_dates.map(proc_lst));
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 7: Calculate daily spectral indices
+////////////////////////////////////////////////////////////////////////////////
+
+var proc_brdf = function (curdate) {
+    var curyear = ee.Date(curdate).get('year');
+    var curdoy = ee.Date(curdate).getRelative('day', 'year').add(1);
+    var brdf_temp = brdf_filter_vars.filterDate(ee.Date(curdate), ee.Date(curdate).advance(1, 'day'));
+                    // .filter(ee.Filter.calendarRange(curyear, curyear, 'year'))
+                    // .filter(ee.Filter.calendarRange(curdoy, curdoy, 'day_of_year'));
+    var brdf_size = brdf_temp.size();
+    var outimg = ee.Image(ee.Algorithms.If(brdf_size.eq(0),
+                                             ee.Image.constant(0).selfMask()
+                                               .addBands(ee.Image.constant(0).selfMask())
+                                               .addBands(ee.Image.constant(0).selfMask())
+                                               .addBands(ee.Image.constant(0).selfMask())
+                                               .addBands(ee.Image.constant(0).selfMask())
+                                               .rename(['ndvi', 'evi', 'savi', 'ndwi5', 'ndwi6'])
+                                               .set('doy', curdoy)
+                                               .set('year', curyear)
+                                               .set('system:time_start', curdate),
+                                             brdf_temp.first()));
+    return outimg;
+};
+
+// Map the function over the image collection
+var daily_brdf = ee.ImageCollection.fromImages(brdf_dates.map(proc_brdf));
+
+////////////////////////////////////////////////////////////////////////////////
+// Step 8: Calculate and export the zonal statistics
+////////////////////////////////////////////////////////////////////////////////
+
+// Function to calculate and export zonal stats based on input from the UI
+var exportzonal = function() {
+
+  // Get start/end dates for zonal summaries from the UI
+  var sdtext = sdinput.getValue();
+  var edtext = edinput.getValue();
+  var sddate = ee.Date(sdtext);
+  var eddate = ee.Date(edtext);
+
+  // Filter precip data for zonal summaries
+  var prec_sum = daily_prec.filterDate(sddate, eddate.advance(1, 'day'));
+  // Function to calculate zonal statistics for precipitation by woreda
+  var prec_zonal = function(image) { 
+    // To get the doy and year, we convert the metadata to grids and then summarize
+    var image2 = image.addBands([image.metadata('doy').int(), image.metadata('year').int()]);
+    // Reduce by regions to get zonal means for each county
+    var output = image2.select(['year', 'doy', 'totprec'], ['year', 'doy', 'totprec'])
+                       //.resample('bilinear')
+                       .reduceRegions({
+                         collection: woreda,
+                         reducer: ee.Reducer.mean(),
+                         scale: 1000});
+    return output;
+  };
+  // Map the zonal statistics function over the filtered precip data
+  var prec_woreda = prec_sum.map(prec_zonal);         
+  // Flatten the results for export
+  var prec_flat = prec_woreda.flatten();
+  
+  // Filter lst data for zonal summaries
+  var lst_sum = daily_lst.filterDate(sddate, eddate.advance(1, 'day'));
+  // Function to calculate zonal statistics for lst by woreda
+  var lst_zonal = function(image) { 
+    // To get the doy and year, we convert the metadata to grids and then summarize
+    var image2 = image.addBands([image.metadata('doy').int(), image.metadata('year').int()]);
+    // Reduce by regions to get zonal means for each county
+    var output = image2.select(['doy', 'year', 'lst_day', 'lst_night', "lst_mean"], ['doy', 'year', 'lst_day', 'lst_night', 'lst_mean'])
+                       .reduceRegions({
+                         collection: woreda,
+                         reducer: ee.Reducer.mean(),
+                         scale: 1000});
+    return output;
+  };
+  // Map the zonal statistics function over the filtered lst data
+  var lst_woreda = lst_sum.map(lst_zonal);  
+  // Flatten the results for export
+  var lst_flat = lst_woreda.flatten();
+  
+  // Filter spectral indices for zonal summaries
+  var brdf_sum = daily_brdf.filterDate(sddate, eddate.advance(1, 'day'));
+  // Function to calculate zonal statistics for spectral indices by county
+  var brdf_zonal = function(image) { 
+    // To get the doy and year, we convert the metadata to grids and then summarize
+    var image2 = image.addBands([image.metadata('doy').int(), image.metadata('year').int()]);
+    // Reduce by regions to get zonal means for each county
+    var output = image2.select(['doy', 'year', 'ndvi', 'savi', 'evi', 'ndwi5', 'ndwi6'], ['doy', 'year', 'ndvi', 'savi', 'evi', 'ndwi5', 'ndwi6'])
+                       .reduceRegions({
+                         collection: woreda,
+                         reducer: ee.Reducer.mean(),
+                         scale: 1000});
+    return output;
+  };
+  // Map the zonal statistics function over the filtered spectral index data
+  var brdf_woreda = brdf_sum.map(brdf_zonal);  
+  // Flatten the results for export
+  var brdf_flat = brdf_woreda.flatten();
+
+  // Export flattened tables to Google Drive
+  // Need to click "RUN in the Tasks tab to configure and start each export
+  var precprefix = "Export_Precip_Data";
+  var prec_ldata = ee.Date(ee.Algorithms.If(
+    eddate.difference(prec_edate, 'day').gt(0),
+    prec_edate,
+    eddate
+  ));
+  var precsum_edate = prec_ldata.format('yyyy-MM-dd').getInfo();
+  var precfilename = precprefix.concat("_", sdtext, "_", precsum_edate);
+  Export.table.toDrive({
+    collection: prec_flat,
+    description: precfilename,
+    selectors: ['wid', 'woreda', 'doy', 'year', 'totprec']
+  });
+
+  var lstprefix = "Export_LST_Data";
+  var lst_ldata = ee.Date(ee.Algorithms.If(
+    eddate.difference(lst_edate, 'day').gt(0),
+    lst_edate,
+    eddate
+  ));
+  var lstsum_edate = lst_ldata.format('yyyy-MM-dd').getInfo();
+  var lstfilename = lstprefix.concat("_", sdtext, "_", lstsum_edate);  
+  Export.table.toDrive({
+    collection: lst_flat, 
+    description: lstfilename,
+    selectors: ['wid', 'woreda', 'doy', 'year', 'lst_day', 'lst_night', 'lst_mean']
+  });
+
+  var brdfprefix = "Export_Spectral_Data";
+  var brdf_ldata = ee.Date(ee.Algorithms.If(
+    eddate.difference(brdf_edate, 'day').gt(0),
+    brdf_edate,
+    eddate
+  ));
+  var brdfsum_edate = brdf_ldata.format('yyyy-MM-dd').getInfo();
+  var brdffilename = brdfprefix.concat("_", sdtext, "_", brdfsum_edate);
+  Export.table.toDrive({
+    collection: brdf_flat, 
+    description: brdffilename,
+    selectors: ['wid', 'woreda', 'doy', 'year', 'ndvi', 'savi', 'evi', 'ndwi5', 'ndwi6']
+  });
+
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// User Interface Code
+////////////////////////////////////////////////////////////////////////////////
+
+// Palettes for NDVI and LST maps
+var tempPal = ['ffffe5', '004529']; // store palette as variable
+var tempPal2 = ['fff5f0', '67000d']; // store palette as variable
+var tempPal3 = ['f7fbff', '08306b']; // store palette as variable
+
+// Create an empty image into which to paint the features, cast to byte.
+var empty = ee.Image().byte();
+
+// Function to visualize the layers
+// Gets updated whenever slides are moved or a new state is entered
+var showLayer = function() {
+  Map.layers().reset();
+  // Get year information from the sliders
+  var curyear = yearindex.getValue();
+  var curdoy = dateindex.getValue();
+  var init_date = ee.Date.fromYMD(curyear, 1, 1);
+  var img_date = init_date.advance(ee.Number(curdoy).subtract(1), 'day');
+  
+  // Filter image collections based on slider values
+  var brdf_disp = daily_brdf.filterDate(img_date, img_date.advance(1, 'day'));
+  var lst_disp = daily_lst.filterDate(img_date, img_date.advance(1, 'day'));
+  var prec_disp = daily_prec.filterDate(img_date, img_date.advance(1, 'day'));
+
+  // Convert filtered image collections to a list
+  //var brdf_list = brdf_disp.toList(brdf_disp.size());
+  //var lst_list = lst_disp.toList(lst_disp.size());
+  //var prec_list = prec_disp.toList(prec_disp.size());
+
+  // Select the image (should be only one) from each collection
+  var ndvi_curimg = brdf_disp.first().select('ndvi');
+  var lstd_curimg = lst_disp.first().select('lst_day');
+  var prec_curimg = prec_disp.first().select('totprec');
+
+  // Add layers to the map viewer
+  Map.addLayer(ndvi_curimg, {min: 0, max: 1, palette: tempPal}, 'NDVI');
+  Map.addLayer(lstd_curimg, {min: 0, max: 40, palette: tempPal2}, 'LST Day');
+  Map.addLayer(prec_curimg, {min: 0, max: 20, palette: tempPal3}, 'Precipitation');
+
+  // Display the woreda boundaries
+  var woredabound = empty.paint({
+    featureCollection: woreda,
+    color: 1,
+    width: 2
+  });
+  Map.addLayer(woredabound,{color: '000000'},'woredas');  
+};
+
+// User interface and menus
+
+// Create a panel on the left side of the map to hold our widgets.
+var panel = ui.Panel();
+panel.style().set('width', '400px'); // Can change the width of the panel here
+
+// Create an intro panel with labels.
+var intro = ui.Panel([
+  ui.Label({
+    value: 'EPIDEMIA Environmental Data Downloader',
+    style: {fontSize: '20px', fontWeight: 'bold'}
+  }),
+  ui.Label('Adjust sliders to select a year and DOY to view daily NDVI.'),
+  ui.Label('Enter a date range to download daily data by woreda.')
+]);
+panel.add(intro);
+
+//// Code for creating the sliders////
+// Select year slider
+var yearlabel = ui.Label({
+    value: 'Select Year',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var yearindex = ui.Slider({
+  min: 2012,
+  max: 2019,
+  step: 1,
+  onChange: showLayer, 
+  style: {stretch: 'vertical',
+          width: '365px'
+  }
+});
+var yearPanel = ui.Panel({
+  widgets: [yearlabel, yearindex],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Select day of year slider
+var datelabel = ui.Label({
+    value: 'Select Day of Year',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var dateindex = ui.Slider({
+  min: 1,
+  max: 365,
+  step: 1,
+  onChange: showLayer, 
+  style: {stretch: 'vertical',
+          width: '365px'
+  }
+});
+var datePanel = ui.Panel({
+  widgets: [datelabel, dateindex],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Code for creating the State FIPS box
+var fipslabel = ui.Label({
+    value: 'Enter the State FIPS code for Summary',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var fipsinput = ui.Textbox({
+  placeholder: 'State FIPS',
+  onChange: showLayer,
+  style: {stretch: 'vertical'}
+});
+var fipsPanel = ui.Panel({
+  widgets: [fipslabel, fipsinput],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Code for creating the start date box
+var sdlabel = ui.Label({
+    value: 'Start Date for Summary',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var sdinput = ui.Textbox({
+  placeholder: 'YYYY-MM-DD',
+
+  style: {stretch: 'vertical'}
+});
+var sdPanel = ui.Panel({
+  widgets: [sdlabel, sdinput],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Code for creating the end date box
+var edlabel = ui.Label({
+    value: 'End Date for Summary',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var edinput = ui.Textbox({
+  placeholder: 'YYYY-MM-DD',
+
+  style: {stretch: 'vertical'}
+});
+var edPanel = ui.Panel({
+  widgets: [edlabel, edinput],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Code for creating the download button
+var exlabel = ui.Label({
+    value: 'Click Button to Generate Summary',
+    style: {fontSize: '17px', fontWeight: 'bold'}
+  });
+var exinput = ui.Button({
+  label: 'Download Summary',
+  onClick: exportzonal
+});
+var exPanel = ui.Panel({
+  widgets: [exlabel, exinput],
+  layout: ui.Panel.Layout.flow('vertical'),
+  style: {padding: '7px'}
+});
+
+// Add the panels to the map and set default values.
+panel.widgets().set(1, yearPanel);
+yearindex.setValue(2018);
+panel.widgets().set(2, datePanel);
+dateindex.setValue(165);
+panel.widgets().set(4, sdPanel);
+sdinput.setValue('2018-01-01')
+panel.widgets().set(5, edPanel);
+edinput.setValue('2018-12-31')
+panel.widgets().set(6, exPanel);
+
+// Add the panel to the ui.root.
+ui.root.insert(0, panel);

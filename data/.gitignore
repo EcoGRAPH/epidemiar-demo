@@ -1,0 +1,6 @@
+# File to force keep empty directory when sharing across github
+
+# Ignore everything in this directory
+*
+# Except this file
+!.gitignore

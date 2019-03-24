@@ -1,0 +1,167 @@
+---
+title: |
+  | How to Install and Update 
+  | the EPIDEMIA Forecasting System
+subtitle: 
+author: |
+  | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
+  | Department of Geography and Environmental Sustainability, University of Oklahoma
+  | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
+date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+urlcolor: blue
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Initial Set-up
+
+## Accounts
+
+### Google Earth Engine
+
+Environmental data will be obtained from Google Earth Engine (GEE). GEE is a cloud-based platform for hosting satellite imagery. GEE also provides tools to process these remote sensing images and other geospatial datasets. Instead of downloading the raw satellite files and processing them on your own computer, which requires significant internet bandwidth and processing power, these steps are done in the cloud. And at the end, we only need to download the summarized output. 
+
+1. Request a GEE account: sign up at https://earthengine.google.com/.
+If you do not already have a Google Account, it will prompt you to make one. Your Google account will also contain a Google Drive account, which is where the GEE data will be downloaded to. 
+
+2. Wait for the account confirmation email in your gmail account. 
+
+
+Optional:  You can access your drive online at https://www.google.com/drive/. Or you can download a desktop app https://www.google.com/drive/download/ and use it like a folder on your computer. 
+
+
+### Github {#github}
+
+Github (https://github.com/) is a web host for Git repositories. Git is a tool for version control. Version control helps keep track of changes while developing computer code. Github can also be used to share code with other users, like we are for the epidemiar-demo project and the epidemiar package. 
+
+
+## Software
+
+### R
+
+R (https://www.r-project.org/) is a statistical programming language that runs all of our analyses and produces reports and documentation, including this document. It is free and has a wide variety of packages built by users all around the world to do many different statistical analyses.
+
+It is easiest to download R from CRAN: https://cloud.r-project.org/. Click on the link for "Download R for Windows." Choose "base," then "Download R for Windows." Run this file and install R on your system. Use the default settings for the installer.
+
+### RStudio
+
+RStudio (https://www.rstudio.com/) is an integrated development environment (IDE) and graphical user interface (GUI) that makes R easier to use. Download RStudio Desktop Open Source License (the free version). Choose the appropriate installer for your operating system (likely Windows Vista/7/8/10) from https://www.rstudio.com/products/rstudio/download/. Install it using the default settings in the installer.
+
+### MiKTeX
+
+MiKTeX (https://miktex.org/) is an implementation of LaTeX, which is what allows us to automatically produce PDF reports of our forecasting results. Navigate to the site, and click on the How To link for your operating system (https://miktex.org/howto/install-miktex).
+
+Click on the download page link (https://miktex.org/download) and then download the basic Installer. Run the installer, but make one change to the default settings. The option for "Install missing packages on-the-fly" should be changed to "yes." You will initially install an incomplete copy of MiKTeX, and it will be updated automatically whenever you run the code. This means that the first time you run the code to make a pdf, you will need an internet connection to acquire the missing MiKTeX packages.
+
+After MiKTeX is installed, restart your computer. This will help RStudio recognize that MiKTeX is installed. 
+
+## R project & packages
+
+### R packages
+
+An R package is a collection of functions, data, and documentation that extends the capabilities of base R. Many packages are used in our code for malaria forecasting, and will need to be installed. The easiest way to do this is to have an internet connection the first time you run the `run_epidemiar_demo.R` script in the `epidemiar-demo` project (installed [later](#epidemiar-demo-project)). In the first section, the script will try to load needed libraries, and if they are missing, it will attempt to download and install them for you. To get a head start on this, in RStudio console, run the command below and that will install a good number of the packages that we use in the `tidyverse` set of packages. 
+
+```{r, eval = FALSE}
+install.packages("tidyverse")
+```
+
+Instead of typing the command to install packages, you also use RStudio menus. Inside of RStudio, click on the 'Packages' tab in the Files/Plots/Packages/Help pane, and click the 'Install' button. In the pop-up window, type the name of the package (tidyverse). 
+
+```{r echo = FALSE, out.width = "60%"}
+knitr::include_graphics("figs/install_packages.JPG")
+```
+
+
+### epidemiar package {#epidemiar-package-install}
+
+The EPIDEMIA team has developed a R package called `epidemiar` for modeling malaria and creating the forecasting report. 
+
+1. Navigate to https://github.com/EcoGRAPH/epidemiar-demo/releases/latest, and download the latest .zip or .gz.tar file.
+
+```{r echo = FALSE, out.width = "60%"}
+knitr::include_graphics("figs/github_epidemiar_release.JPG")
+```
+
+2. In RStudio, click on the "Packages" tab in the Files/Plots/Packages/Help pane, and click the "Install" button. 
+
+3. Under "Install From", select "Package Archive File (.zip, .tar.gz)". Navigate to and select the zip file, and click "Install". 
+
+```{r echo = FALSE, out.width = "60%"}
+knitr::include_graphics("figs/rstudio_install_source.JPG")
+```
+
+Alternatively, using `devtools::install_github("ecograph/epidemiar")` you can install from the Github repository inside of R, with options on which branch or tag you want to install. 
+
+### epidemiar-demo project {#epidemiar-demo-project}
+
+The demo project can be downloaded from Github directly. 
+
+1. Navigate to https://github.com/EcoGRAPH/epidemia-scripts/releases/latest. Click "Source code (zip)" to download the zipped folder of the latest update. (Note: below picture is of a different R project repository, but the concept is the same.)
+
+```{r echo = FALSE, out.width = "75%"}
+knitr::include_graphics("figs/latest_release_edited.JPG")
+#should really update to epidemiar-demo screenshot for following update (i.e. after a release exists to take a screenshot of)
+```
+
+2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-0.1.0`. This will help you keep track of which version of the project you are using. 
+
+
+## Google Earth Engine (GEE) script
+
+1. In the epidemiar-demo-version# folder ([created in this step](#epidemiar-demo-project)), there is a subfolder named `GEE`. Inside this subfolder will be a text file with the latest Amhara summary GEE script.
+
+2. Navigate to https://code.earthengine.google.com/. 
+
+3. In the "New Script" center section of the page, copy and paste the text of the script. 
+
+```{r echo = FALSE, out.width = "75%"}
+knitr::include_graphics("figs/GEE_newscript.JPG")
+```
+
+3. Click on save, and name it the same as the text file.
+
+\newpage
+# Updating 
+
+Once everything is installed, there are only three pieces of software that could need updating when we make a new release: the epidemiar-demo project, the epidemiar package, or the GEE script. Updating these will be very similar to the initial install.
+
+
+## epidemiar package
+
+Updating the `epidemiar` package is exactly like installing, so please see that section [above](#epidemiar-package-install).
+
+## epidemiar-demo project {#updating-epidemiar-demo-project}
+
+Updating the `epidemiar-demo` project is the same as installing, with a few additional steps at the end. After getting the latest version, if you have gathered any new or different data (`/data`, `/data_epidemiological`, or `/data_environmental`), you will need to copy those file(s) over into the appropriate folder(s). 
+
+## GEE script
+
+Updates to the GEE script will be included in the `epidemiar-demo` project in the folder `GEE`. The new version will need to be copied into your Google Earth Engine account. 
+
+1. Update the `epidemiar-demo` project with the instructions [above](#updating-epidemiar-demo-project). The new GEE script will be in `epidemiar-demo/GEE` folder, named like `EPIDEMIA_GEE_script_v2.1.txt`. The version number will change with new updates.
+
+2. Navigate to https://code.earthengine.google.com/. 
+
+3. On the left hand section, click the red "New" button, and select "File". Name the file the same as the new GEE script text file.
+
+```{r echo = FALSE, out.width = "75%"}
+knitr::include_graphics("figs/GEE_update_new.JPG")
+```
+
+3. In the left section, click on the file name that you just created. 
+
+4. In the now blank center section of the page, copy and paste the text of the new GEE script.
+
+```{r echo = FALSE, out.width = "75%"}
+knitr::include_graphics("figs/GEE_updatedscript.JPG")
+```
+
+5. Use the new version when you want to collect more environmental data from Google Earth Engine.
