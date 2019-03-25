@@ -23,12 +23,11 @@
 /documentation/figs/*
 /documentation/*.tex
 
-#epi, env, data datasets 
-#will be handled by lfs
+###Things kept in demo
+##epi, env, data datasets 
 #/data_epidemiological/*
 #/data_environmental/*
 #/data/*
-
-#pdfs : handled by lfs
+##pdfs
 #/report/*.pdf
 #/documentation/*.pdf
