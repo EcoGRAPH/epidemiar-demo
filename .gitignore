@@ -25,10 +25,10 @@
 
 #epi, env, data datasets 
 #will be handled by lfs
-/data_epidemiological/*
-/data_environmental/*
-/data/*
+#/data_epidemiological/*
+#/data_environmental/*
+#/data/*
 
 #pdfs : handled by lfs
-/report/*.pdf
-/documentation/*.pdf
+#/report/*.pdf
+#/documentation/*.pdf
