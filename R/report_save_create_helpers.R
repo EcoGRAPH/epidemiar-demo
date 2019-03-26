@@ -147,31 +147,38 @@ create_pdf <- function(new_data = "report/report_data.RData",
     # Compile the pdf, setting working directory specifically for knit run
     setwd("report")
     knitcall <- paste0("library(knitr); knit2pdf('", formatting_file, "')")
-    #new R session for clean environment
-    system2("Rscript", c("-e", shQuote(knitcall)))
-    setwd("..")
     
-    base_output <- paste0("report/", file_path_sans_ext(formatting_file), ".pdf") 
-    
-    if (exists("report_save_file")){
-      file.copy(from = base_output,
-                to = report_save_file,
-                overwrite = TRUE)
-      message(paste0("Saved report to /", report_save_file))
-    }
-    
-    if (show){
+    #tryCatch to keep pdf generation and saving to new file together
+    tryCatch({
+      #new R session for clean environment
+      system2("Rscript", c("-e", shQuote(knitcall)))
+      setwd("..")
+      
+      #this is the format of the automatically generated pdf by the Rnw file
+      base_output <- paste0("report/", file_path_sans_ext(formatting_file), ".pdf") 
+      
+      #if saving to a specific file name
       if (exists("report_save_file")){
-        open_call <- paste0('open "', report_save_file, '"')
-      } else open_call <- paste0('open "', base_output, '"')
-      #open
-      system(open_call)
-    } #end if show
-    
-    
-  }
+        #check that original pdf was created
+        file.copy(from = base_output,
+                  to = report_save_file,
+                  overwrite = TRUE)
+        message(paste0("Saved report to /", report_save_file))
+      } #end if exist report_save_file   
+    }, error = function(e){
+      stop("Error generating and saving pdf report.")
+    })
   
+  if (show){
+    if (exists("report_save_file")){
+      open_call <- paste0('open "', report_save_file, '"')
+    } else open_call <- paste0('open "', base_output, '"')
+    #open
+    system(open_call)
+  } #end if show
   
-}
+} #end continue_ans == 1
+
+} #end create_pdf
 
 
