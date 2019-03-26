@@ -53,6 +53,10 @@ We are going to use an R script to:
 * call the epidemiar functions to run the model, forecast, event detection, produce & save the report data ouput
 * send the results to a formatting script (`report/epidemia_report_demo.Rnw`, a Sweave file) to create the final pdf report.
 
+If you have not installed `epidemiar`, or MikTeX ("Install missing packages on-the-fly" = Yes; and restart the computer) yet, please see the Install & Update Guide (`"documentation/install_update.pdf"`) for details on those steps. 
+
+Video tutorials were made for our colleagues for a previous version of the software. Some of the details have since changed, but you can view them here: https://www.youtube.com/channel/UC-NKR1cer4wkg8hHHP7K9Vw.
+
 Overview diagram of how `epidemiar-demo` (custom R project) fits into the EPIDEMIA Forecasting System:
 ```{r echo = FALSE, fig.align ='center', out.width = "65%"}
 knitr::include_graphics("figs/EPIDEMIA_overview.png")
@@ -63,7 +67,7 @@ A more detailed look at the system:
 knitr::include_graphics("figs/epidemia_system_diagram_20190321.jpg")
 ```
 
-If you have not installed `epidemiar`, MikTeX, or other components yet, please see the Install & Update Guide (`"documentation/install_update.pdf"`) for details on those steps. 
+
 
 # R script
 
@@ -87,7 +91,7 @@ First, we need to load the R packages and functions we will use in this R script
 if (!require("pacman")) install.packages("pacman")
 
 #load packages
-  #note: data corrals use dplyr, tidyr, lubridate, readr, readxl
+  #note: data corrals use dplyr, tidyr, lubridate, readr, readxl, epidemiar
   #note: pdf creation requires knitr, tinytex
 pacman::p_load(dplyr,
                knitr,
@@ -98,6 +102,7 @@ pacman::p_load(dplyr,
                tidyr,
                tinytex,
                tools)
+#load specialized package (https://github.com/EcoGRAPH/epidemiar)
 library(epidemiar)
 ```
 
@@ -109,7 +114,6 @@ There are also some local R functions, which are local user-defined functions bu
 
 ```{r functions}
 ## Locally-defined Functions
-source("R/date_functions.R")
 source("R/data_corrals.R") 
 source("R/report_save_create_helpers.R")
 ```
@@ -187,6 +191,21 @@ The `corral_environment()` function takes a single argument, a tibble of woredas
 # read & process environmental data for woredas in report
 am_env_data <- corral_environment(report_woredas = report_woredas)
 ```
+
+### Optional: Date Filtering
+
+By default, the report will be generated for the last week of available epidemiological data in the `data_epidemiological/` corral folder. If you wish to run a report for a particular previous week, you can quickly filter the data after the corrals. Environmental data does not need to be filtered as it will run with whatever environmental data is or is not available. 
+
+```{r date-filter}
+# ## Optional: Date Filtering for running certain week's report
+# # week is always end of the week, 7th day
+# req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) 
+# am_epi_data <- am_epi_data %>% 
+#   filter(obs_date <= req_date)
+# am_env_data <- am_env_data %>% 
+#   filter(obs_date <- req_date)
+```
+
 
 ### Environmental reference/climatology data
 
@@ -568,6 +587,10 @@ create_pdf(new_data = "report/report_data_2018W52.RData",
           show = TRUE)
 ```
 
+
+## Alternative: Rnw compile pdf
+
+If you have not set MiKTeX to install missing packages on the fly without asking, the pdf creation will fail. You can compile the pdf once from the Rnw itself, and answer yes to the missing packages installation prompts. Then you can return to using the functions above. In RStudio, open `epidemia_report_demo.Rnw`, and click on `Compile PDF`. 
 
 ## Woreda names
 For reference, here is a list of report woreda names:
