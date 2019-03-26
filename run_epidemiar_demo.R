@@ -29,10 +29,11 @@ pacman::p_load(dplyr,
                tidyr,
                tinytex,
                tools)
+#load specialized package (https://github.com/EcoGRAPH/epidemiar)
 library(epidemiar)
 
 ## Locally-defined Functions
-source("R/date_functions.R")
+#source("R/date_functions.R")
 source("R/data_corrals.R") 
 source("R/report_save_create_helpers.R")
 
