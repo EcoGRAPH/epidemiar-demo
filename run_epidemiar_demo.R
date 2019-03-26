@@ -18,7 +18,7 @@
 if (!require("pacman")) install.packages("pacman")
 
 #load packages
-  #note: data corrals use dplyr, tidyr, lubridate, readr, readxl
+  #note: data corrals use dplyr, tidyr, lubridate, readr, readxl, epidemiar
   #note: pdf creation requires knitr, tinytex
 pacman::p_load(dplyr,
                knitr,
@@ -48,6 +48,13 @@ am_epi_data <- corral_epidemiological(report_woreda_names = report_woredas$wored
 
 # read & process environmental data for woredas in report
 am_env_data <- corral_environment(report_woredas = report_woredas)
+
+# ## Optional: Date Filtering for running certain week's report
+# req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) #week is always end of the week, 7th day
+# am_epi_data <- am_epi_data %>% 
+#   filter(obs_date <= req_date)
+# am_env_data <- am_env_data %>% 
+#   filter(obs_date <- req_date)
 
 # read in climatology / environmental reference data
 am_env_ref_data <- read_csv("data/env_ref_data.csv", col_types = cols())
