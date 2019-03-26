@@ -1,6 +1,6 @@
 <<set_default_opts, echo=FALSE>>=
 
-## Amhara-malaria version
+## Demo Amhara-malaria version
 
 opts_chunk$set(echo = FALSE, dev = "png", dpi=150, concordance=TRUE)
 @
@@ -117,7 +117,7 @@ report_dates_short <- paste0(lubridate::isoyear(params_meta$report_dates$known$m
 report_short_name <- "Demonstration Malaria Report"
 report_title <- paste0("Demonstration Malaria Early Detection and Early Warning Report",
                        "\\\\for Selected Woredas in the Amhara Region of Ethiopia",
-                       "\\\\Simulated Data for ", report_week_dates)
+                       "\\\\", report_week_dates)
 report_rhead <- paste0(report_short_name, ":  ", report_dates_short)
 
 
@@ -152,7 +152,7 @@ num_grps <- length(params_meta$groupings)
 \begin{document}
 
 \title{\Sexpr{report_title}}
-\author{EPIDEMIA Team}
+\author{Simulated Data}
 \maketitle
 
 \overfullrule=2cm
