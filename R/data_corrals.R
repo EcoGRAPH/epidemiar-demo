@@ -198,8 +198,7 @@ corral_environment <- function(report_woredas){
 # test_pf_tot = `Blood film P. falciparum` + `RDT P. falciparum`,
 # test_pv_only = `Blood film P. vivax` + `RDT P. vivax`.
 # 
-# Function depends on libraries: dplyr, lubridate, readxl, readr
-# Needs additional user function make_date_yw() found in R/date_functions.R
+# Function depends on libraries: dplyr, lubridate, readxl, readr, epidemiar
 # Needs additional metadata files: 
 #  Spelling crosswalk: data/woreda_spellings.xlsx
 #  Split woreda information: data/woredas_split.xlsx
@@ -225,7 +224,7 @@ corral_epidemiological <- function(report_woreda_names){
   split <- readxl::read_xlsx("data/woredas_split.xlsx")
   #population data
   pop <- readr::read_csv("data/population_weekly_2012-2030.csv", col_types = cols()) %>% 
-    dplyr::mutate(obs_date = make_date_yw(year, week_of_year, 7))
+    dplyr::mutate(obs_date = epidemiar::make_date_yw(year, week_of_year, 7))
   
   
   # Read in past epi data, processed through old EPIDEMIA system
@@ -271,7 +270,7 @@ corral_epidemiological <- function(report_woreda_names){
                          # budget years seems to always start Week 28
                          yrs_to_add = dplyr::if_else(`Epi- Week` >= 28, 7, 8),
                          #ISO end date
-                         obs_date = make_date_yw(`Budget Year` + yrs_to_add, `Epi- Week`, 7 ),
+                         obs_date = epidemiar::make_date_yw(`Budget Year` + yrs_to_add, `Epi- Week`, 7 ),
                          #all falciparam positive tests (or mixed)
                          test_pf_tot = `Blood film P. falciparum` + `RDT P. falciparum`,
                          #all P. vivax positive tests
