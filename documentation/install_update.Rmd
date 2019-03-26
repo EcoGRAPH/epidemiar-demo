@@ -59,9 +59,9 @@ RStudio (https://www.rstudio.com/) is an integrated development environment (IDE
 
 MiKTeX (https://miktex.org/) is an implementation of LaTeX, which is what allows us to automatically produce PDF reports of our forecasting results. Navigate to the site, and click on the How To link for your operating system (https://miktex.org/howto/install-miktex).
 
-Click on the download page link (https://miktex.org/download) and then download the basic Installer. Run the installer, but make one change to the default settings. The option for "Install missing packages on-the-fly" should be changed to "yes." You will initially install an incomplete copy of MiKTeX, and it will be updated automatically whenever you run the code. This means that the first time you run the code to make a pdf, you will need an internet connection to acquire the missing MiKTeX packages.
+Click on the download page link (https://miktex.org/download) and then download the basic Installer. Run the installer, but make one change to the default settings. **The option for "Install missing packages on-the-fly" should be changed to "yes."** You will initially install an incomplete copy of MiKTeX, and it will be updated automatically whenever you run the code. This means that the first time you run the code to make a pdf, you will need an internet connection to acquire the missing MiKTeX packages.
 
-After MiKTeX is installed, restart your computer. This will help RStudio recognize that MiKTeX is installed. 
+After MiKTeX is installed, **restart your computer**. This will help RStudio recognize that MiKTeX is installed. 
 
 ## R project & packages
 
