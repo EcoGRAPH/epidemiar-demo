@@ -165,7 +165,7 @@ create_pdf <- function(new_data = "report/report_data.RData",
         file.copy(from = base_output,
                   to = report_save_file,
                   overwrite = TRUE)
-        message(paste0("Attempted to save report to /", report_save_file))
+        message(paste0("Saving report to /", report_save_file))
       }
       
       if (show){
