@@ -17,8 +17,8 @@
 #
 
 loop <- TRUE
-wk_list <- c(epidemiar::make_date_yw(year = 2016, week = c(15:18), weekday = 7),
-             epidemiar::make_date_yw(year = 2017, week = c(15:18), weekday = 7))
+wk_list <- c(epidemiar::make_date_yw(year = 2016, week = c(23:24), weekday = 7),
+             epidemiar::make_date_yw(year = 2017, week = c(37:38), weekday = 7))
 
 
 # 1. Libraries & Functions ------------------------------------------------------
