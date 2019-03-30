@@ -57,7 +57,7 @@ am_env_data <- corral_environment(report_woredas = report_woredas)
 #   filter(obs_date <- req_date)
 
 # read in climatology / environmental reference data
-am_env_ref_data <- read_csv("data/env_ref_data.csv", col_types = cols())
+am_env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 
 # read in environmental info file
 am_env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")

@@ -146,38 +146,37 @@ create_pdf <- function(new_data = "report/report_data.RData",
     
     # Compile the pdf, setting working directory specifically for knit run
     setwd("report")
+    #paste together command arguments
     knitcall <- paste0("library(knitr); knit2pdf('", formatting_file, "')")
-    
-    #tryCatch to catch errors in knit pdf generation before copying/success messages
-    tryCatch({
-      #new R session for clean environment
-      system2("Rscript", c("-e", shQuote(knitcall)))
-    }, error = function(e){
-      stop("Error generating and saving pdf report. Check that MiKTeX is installed and is in your system PATH.")
-    }, warning = function(w){
-      stop("Warning message during generating and saving pdf report. Check that MiKTeX is installed and is in your system PATH.")
-    })
-    
+    #new R session for clean environment
+    #capture result of call in sysknitres
+    sysknitres <- system2("Rscript", c("-e", shQuote(knitcall)), stderr = "", stdout = "", wait = TRUE)
+    #fix working directory
     setwd("..")
     
-    #this is the format of the automatically generated pdf by the Rnw file
-    base_output <- paste0("report/", file_path_sans_ext(formatting_file), ".pdf") 
-    
-    #if saving to a specific file name
-    if (exists("report_save_file")){
-      file.copy(from = base_output,
-                to = report_save_file,
-                overwrite = TRUE)
-      message(paste0("Attempted to save report to /", report_save_file))
-    }
-    
-    if (show){
+    #check if pdf generated correctly (sysknitres == 0L on success)
+    if (sysknitres == 0L){
+      
+      #this is the format of the automatically generated pdf by the Rnw file
+      base_output <- paste0("report/", file_path_sans_ext(formatting_file), ".pdf") 
+      
+      #if saving to a specific file name
       if (exists("report_save_file")){
-        open_call <- paste0('open "', report_save_file, '"')
-      } else open_call <- paste0('open "', base_output, '"')
-      #open
-      system(open_call)
-    } #end if show
+        file.copy(from = base_output,
+                  to = report_save_file,
+                  overwrite = TRUE)
+        message(paste0("Saving report to /", report_save_file))
+      }
+      
+      if (show){
+        if (exists("report_save_file")){
+          open_call <- paste0('open "', report_save_file, '"')
+        } else open_call <- paste0('open "', base_output, '"')
+        #open
+        system(open_call)
+      } #end if show
+      
+    } else {message("Error occurred in generating pdf. Check that MiKTeX is installed, and found in your system PATH.")}
     
   } #end continue_ans == 1
   
