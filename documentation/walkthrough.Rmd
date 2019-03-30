@@ -213,7 +213,7 @@ The environmental reference / climate data file `"data/env_ref_data.csv"` contai
 
 ```{r read-envref}
 # read in climatology / environmental reference data
-am_env_ref_data <- read_csv("data/env_ref_data.csv", col_types = cols())
+am_env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 ```
 
 ### Environmental variable information
