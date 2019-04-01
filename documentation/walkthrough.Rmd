@@ -2,7 +2,7 @@
 title: |
   | EPIDEMIA Malaria Forecasting System: 
   | Detailed Walk-through Guide
-subtitle: For epidemiar-demo version 1.0.0
+subtitle: For epidemiar-demo version 1.0.1
 author: |
   | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
   | Department of Geography and Environmental Sustainability, University of Oklahoma
@@ -142,6 +142,8 @@ report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>%
 ### Epidemiological data
 
 For the epidemiology data, we will need weekly case counts per woreda of confirmed _P. falciparum_ & mixed, and _P. vivax_ malaria. To merge data from multiple files, we will use a "data corral" subfolder `data_epidemiological` in the `epidemia-demo` folder. 
+
+The data in this demo project have been **simulated**. These data should not be used beyond this demonstration of what a disease report could look like, and should not be taken as indictative of actual epidemiological data.
 
 The `corral_epidemiological()` function will merge all xlsx files in this directory, so you can have multiple files, e.g. one for each year, month, or even by week. No special file names are expected, so you are free to use your standard naming convention.  The script is expecting the file to be in your standard format. Specifically, it is looking for the fields:  `Woreda/Hospital`, `Budget Year`, `Epi- Week`, `Blood film P. falciparum`, `RDT P. falciparum`, `Blood film P. vivax`, `RDT P. vivax`. 
 
