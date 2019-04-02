@@ -254,7 +254,7 @@ corral_epidemiological <- function(report_woreda_names){
     #need to set certain column types to avoid excessive warnings
     #Ethiopian dates do not fit well into other date classes due to calendar format
     #grab column names
-    nms <- names(suppressWarnings(read_xlsx(epi_xlsx_files[[i]])))
+    nms <- names(suppressWarnings(readxl::read_xlsx(epi_xlsx_files[[i]])))
     
     #quick check for an empty/blank file, if blank, it does nothing to skip to next file
     if (length(nms) > 0) {
