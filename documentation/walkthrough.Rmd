@@ -28,7 +28,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 This detailed walk-through will explain each section of the `run_epidemiar_demo.R` script in the `epidemiar-demo` R project. 
 
-All surveillance data in this demo is *simulated* and for *demo use only*. The environmental data, from Google Earth Engine, is real. This walkthrough is adapted from documentation given to our colleagues in Ethiopia. 
+All surveillance data in this demo is *simulated* and for *demo use only*. The epidemiolgoical data are artificial and should not be used for research of public health purposes. The environmental data, from Google Earth Engine, is real. This walkthrough is adapted from documentation given to our colleagues in Ethiopia. 
 
 For more details on the `epidemiar` package, see the vignettes:
 
