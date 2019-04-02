@@ -1,6 +1,6 @@
 This is a R project for creating demo EPIDEMIA forecasting reports using the epidemiar package. The final report presents a malaria forecasting report for 47 woredas in the Amhara region for the past 18 weeks through 8 weeks forecasted into the future (26 total weeks). Malaria is broken out by species: _Plasmodium falciparum_ and mixed species, and also _P. vivax_. The report includes environmental and epidemiological surveillance data.
 
-Demo is based off a real implementation for forecasting malaria in the Amhara region of Ethiopia, however surveillance data in this demo have been *simulated*. These data should not be used beyond this demonstration of what a disease report could look like, and should not be taken as indictative of actual epidemiological data.
+Demo is based off a real implementation for forecasting malaria in the Amhara region of Ethiopia, however surveillance data in this demo have been *simulated*. These data are artificial and should not be used for research of public health purposes. These data are only for this demonstration of what a disease report could look like.
 
 Open `epidemiar_demo.RProj`, and the main script to open and run is `run_epidemiar_demo.R`.
 
