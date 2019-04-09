@@ -321,9 +321,12 @@ corral_epidemiological <- function(report_woreda_names){
   # Missing check, find/warn if gaps
   #create date table
   epi_dts <- epi_data %>% 
+    #by each woreda (important for split woredas to test individually)
+    dplyr::group_by(woreda_name) %>% 
     #first and last dates
     dplyr::summarize(mindt = min(obs_date), maxdt = max(obs_date)) %>% 
     #making a list of dates (per row calc for seq(), list column for dates)
+    dplyr::rowwise() %>% 
     dplyr::mutate(dts = list(seq(mindt, maxdt, by = "1 week"))) 
   #note: for any and all woredas in any data source
   
@@ -334,7 +337,7 @@ corral_epidemiological <- function(report_woreda_names){
     #list of dates present in data
     dplyr::summarize(unidts = list(unique(obs_date))) %>% 
     #get full list of dates that should be present
-    dplyr::mutate(dts = epi_dts$dts) %>% 
+    dplyr::left_join(epi_dts %>% select(woreda_name, dts), by = "woreda_name") %>% 
     #per row (kept for next step as well)
     dplyr::rowwise() %>% 
     #get list of dates NOT present (setdiff loses date format, so reset)
