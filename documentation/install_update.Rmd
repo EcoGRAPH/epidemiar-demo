@@ -84,10 +84,19 @@ knitr::include_graphics("figs/install_packages.JPG")
 
 The EPIDEMIA team has developed a R package called `epidemiar` for modeling malaria and creating the forecasting report. 
 
+1. We suggest installing using `remotes::install_github()` function as this will automatically install dependent packages. Change the tag number to the most current release - which can be found by viewing https://github.com/EcoGRAPH/epidemiar/releases/latest. For instance, the command below installs version "v.1.1.0". 
+Note: You may need to install `devtools` and `remotes` packages first, if you have not done so already. 
+
+```{r, eval = FALSE}
+remotes::install_github("ecograph/epidemiar@v1.1.0")
+```
+
+Alternatively, we can download using the binaries provided with the latest release. 
+
 1. Navigate to https://github.com/EcoGRAPH/epidemiar-demo/releases/latest, and download the latest .zip or .gz.tar file.
 
 ```{r echo = FALSE, out.width = "60%"}
-knitr::include_graphics("figs/github_epidemiar_release.JPG")
+knitr::include_graphics("figs/github_epidemiar_release_v1.1.1.JPG")
 ```
 
 2. In RStudio, click on the "Packages" tab in the Files/Plots/Packages/Help pane, and click the "Install" button. 
@@ -98,20 +107,20 @@ knitr::include_graphics("figs/github_epidemiar_release.JPG")
 knitr::include_graphics("figs/rstudio_install_source.JPG")
 ```
 
-Alternatively, using `devtools::install_github("ecograph/epidemiar")` you can install from the Github repository inside of R, with options on which branch or tag you want to install. 
+4. If you follow this method, afterwards, you will want to make sure that you have all the package dependencies installed (listed in the DESCRIPTION).
+
 
 ### epidemiar-demo project {#epidemiar-demo-project}
 
 The demo project can be downloaded from Github directly. 
 
-1. Navigate to https://github.com/EcoGRAPH/epidemia-scripts/releases/latest. Click "Source code (zip)" to download the zipped folder of the latest update. (Note: below picture is of a different R project repository, but the concept is the same.)
+1. Navigate to https://github.com/EcoGRAPH/epidemiar-demo/releases/latest. Click "Source code (zip)" to download the zipped folder of the latest update. (Note: below picture is of an earlier release, but the concept is the same.)
 
 ```{r echo = FALSE, out.width = "75%"}
-knitr::include_graphics("figs/latest_release_edited.JPG")
-#should really update to epidemiar-demo screenshot for following update (i.e. after a release exists to take a screenshot of)
+knitr::include_graphics("figs/latest_demo_release.JPG")
 ```
 
-2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-0.1.0`. This will help you keep track of which version of the project you are using. 
+2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-1.0.1`. This will help you keep track of which version of the project you are using. 
 
 
 ## Google Earth Engine (GEE) script
