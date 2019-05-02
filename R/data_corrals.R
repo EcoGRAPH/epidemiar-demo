@@ -32,6 +32,33 @@
 # Function returns a tibble with combined and checked daily environmental data
 # per woreda per variable.
 # 
+#
+# There are two associated helper functions that are used internally for
+# pre-processing of environmental data files: 
+# env_csv_processing(): transforms a read in GEE csv file into a standard long data format.
+# get_mtime(): captures the last modified time of a file, used to get the most recent GEE data when there are multiple observations for the same woreda-variable-day combination. 
+#
+
+env_csv_processing <- function(df, mtime){
+  this_data <- df %>% 
+    #if present, drop "woreda" field (will use wid to link) 
+  {if("woreda" %in% names(.)) dplyr::select(., -woreda) else dplyr::select(., dplyr::everything())} %>% 
+    #gather all environmental variables into long format (all columns that are not wid, doy, or year)
+    tidyr::gather(key = "environ_var_code", value = "obs_value", -wid, -doy, -year) %>% 
+    #add ISO week date (day of year added to Jan 1 of that year, index 0, so subtract 1)
+    dplyr::mutate(obs_date = as.Date(doy - 1, origin = lubridate::ymd(year, truncated = 2)),
+                  data_time = mtime) %>% 
+    #drop doy and year fields now that we have obs_date
+    dplyr::select(-doy, -year) %>% 
+    #rename wid field to match capitalization
+    dplyr::rename(WID = wid)
+}
+#custom function for getting mtime of file
+get_mtime <- function(fname){
+  file.info(fname)$mtime
+}
+
+
 
 corral_environment <- function(report_woredas){
 
@@ -51,40 +78,26 @@ corral_environment <- function(report_woredas){
   
   # GEE data
   #get list of csv files
-  env_csv_files <- list.files("data_environmental/", full.names = TRUE, pattern="*.csv$")
-  #initialize tibble to collect all data
-  env_data <- dplyr::tibble()
-  #loop
-  for (i in 1:length(env_csv_files)){
-    
-    #check for non empty files (defined as files with more than 1 (header) row)
-    # if empty, does nothing to just skip to next file
-    # files can be empty if no data exists in the range requested to GEE
-    if (length(readr::count_fields(env_csv_files[[i]], readr::tokenizer_csv())) > 1){
-      
-      #read in 
-      this_data <- readr::read_csv(env_csv_files[[i]], col_types = cols()) 
-      #process
-      this_data <- this_data %>% 
-        #if present, drop "woreda" field (will use wid to link) 
-      {if("woreda" %in% names(.)) dplyr::select(., -woreda) else dplyr::select(., dplyr::everything())} %>% 
-        #gather all environmental variables into long format (all columns that are not wid, doy, or year)
-        tidyr::gather(key = "environ_var_code", value = "obs_value", -wid, -doy, -year) %>% 
-        #add ISO week date (day of year added to Jan 1 of that year, index 0, so subtract 1)
-        dplyr::mutate(obs_date = as.Date(doy - 1, origin = lubridate::ymd(year, truncated = 2)),
-                      #add last MODIFIED time of the file as a column
-                      data_time = file.info(env_csv_files[[1]])$mtime) %>% 
-        #drop doy and year fields now that we have obs_date
-        dplyr::select(-doy, -year) %>% 
-        #rename wid field to match capitalization
-        dplyr::rename(WID = wid)
-      
-      # append
-      env_data <- dplyr::bind_rows(env_data, this_data)
-      
-    }
-    
-  }
+  env_csv_files_raw <- list.files("data_environmental/", full.names = TRUE, pattern="*.csv$")
+  
+  #keep the names of only csv files that are not empty
+  file_condition <- sapply(env_csv_files_raw, function(x) {length(readr::count_fields(x, readr::tokenizer_csv())) > 1})
+  env_csv_files <- env_csv_files_raw[file_condition]
+  
+  #initialize list of correct length
+  env_data_list_raw <- vector("list", length(env_csv_files))
+  
+  #lapply to read in all GEE data files, into a list of datasets
+  env_data_list_raw <- lapply(env_csv_files, readr::read_csv, col_types = cols())
+  
+  #also get file modified times 
+  env_file_times <- lapply(env_csv_files, get_mtime)
+  
+  #apply to process all environmental csv input data: long form data with field for file modified time
+  env_data_list <- mapply(env_data_list_raw, env_file_times, FUN = env_csv_processing, SIMPLIFY = FALSE)
+  
+  #bind each list item (from each csv file) into one dataset
+  env_data <- dplyr::bind_rows(env_data_list)
   
   message("Processing environmental data...")
   
