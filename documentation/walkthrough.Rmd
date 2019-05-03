@@ -2,7 +2,7 @@
 title: |
   | EPIDEMIA Malaria Forecasting System: 
   | Detailed Walk-through Guide
-subtitle: For epidemiar-demo version 1.0.1
+subtitle: For epidemiar-demo version 1.1.0
 author: |
   | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
   | Department of Geography and Environmental Sustainability, University of Oklahoma
