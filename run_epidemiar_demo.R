@@ -164,7 +164,7 @@ if (exists("am_epi_data") & exists("am_env_data")){
                                 report_period = am_report_period, 
                                 ed_summary_period = am_ed_summary_period,
                                 ed_method = "Farrington", 
-                                ed_control = am_pfm_ed_control,
+                                ed_control = am_pv_ed_control,
                                 env_data = am_env_data, 
                                 obsfield = environ_var_code, 
                                 valuefield = obs_value, 
