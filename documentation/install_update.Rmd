@@ -88,7 +88,7 @@ The EPIDEMIA team has developed a R package called `epidemiar` for modeling mala
 Note: You may need to install `devtools` and `remotes` packages first, if you have not done so already. 
 
 ```{r, eval = FALSE}
-remotes::install_github("ecograph/epidemiar@v1.1.0")
+remotes::install_github("ecograph/epidemiar@v1.4.0")
 ```
 
 Alternatively, we can download using the binaries provided with the latest release. 
@@ -120,7 +120,7 @@ The demo project can be downloaded from Github directly.
 knitr::include_graphics("figs/latest_demo_release.JPG")
 ```
 
-2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-1.0.1`. This will help you keep track of which version of the project you are using. 
+2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-1.4.0`. This will help you keep track of which version of the project you are using. 
 
 
 ## Google Earth Engine (GEE) script
