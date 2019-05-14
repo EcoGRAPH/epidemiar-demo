@@ -2,7 +2,7 @@
 title: |
   | EPIDEMIA Malaria Forecasting System: 
   | Detailed Walk-through Guide
-subtitle: For epidemiar-demo version 1.1.0
+subtitle: For epidemiar-demo version 1.4.0
 author: |
   | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
   | Department of Geography and Environmental Sustainability, University of Oklahoma
@@ -11,7 +11,7 @@ date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
 output: 
   pdf_document:
     toc: true
-    toc_depth: 2
+    toc_depth: 3
     number_sections: true
 urlcolor: blue
 ---
@@ -69,18 +69,28 @@ knitr::include_graphics("figs/epidemia_system_diagram_20190321.jpg")
 
 
 
-# R script
+# R scripts
 
-Open the `epidemiar_demo.Rproj`, and open the `run_epidemiar_demo.R` script in RStudio. This script is divided into sections:
+Open the `epidemiar_demo.Rproj`. From here, there are three scripts of major importance. 
+
+1. The script `run_epidemiar_demo.R` will bring in data, run and create the model and forecasts, and generate a pdf report. 
+2. The script `create_model_demo.R` generates only the forecasting model, which can be used in subsequent runs of `run_epidemiar_demo.R`, saving processing time.
+3. The parameter file `data/model_parameters_amhara.R` contains the common parameters for both scripts. 
+
+
+## `run_epidemiar_demo.R` Part I
+
+This script is divided into sections:
 
 1. Loading packages & functions
 2. Reading in the data
-3. Setting up the Forecasting controls
-4. Setting up the Early Detection controls
-5. Run epidemia & create report data
-6. Merge species data, save, and create pdf report
+3. Run epidemia & create report data
+4. Merge species data, save, and create pdf report
 
-## Loading packages & functions
+Part I covers the first two sections. 
+
+
+### Loading packages & functions
 
 First, we need to load the R packages and functions we will use in this R script. 
 
@@ -119,7 +129,7 @@ source("R/report_save_create_helpers.R")
 ```
 
 
-## Reading in the data
+### Reading in the data
 
 The epidemiar modeling and code requires 3 main sets of data: 
 
@@ -129,7 +139,7 @@ The epidemiar modeling and code requires 3 main sets of data:
 
 A few look-up tables (metadata or informational reference sets) are needed as well. 
 
-### Woreda metadata
+#### Woreda metadata
 
 First, we read in some information about the woredas in the Amhara region. We are going to create a subset of woredas that are going to be included in the report. A column named `report` in the Excel metadata file `"data/woredas.xlsx"` indicates if the woreda should be in the report. Currently, these are the 47 pilot woredas. To be included in the report, the woreda would need sufficient epidemiolgical data, environmental data, and model cluster ID. (Note: See documentation inside the `epidemiar` package regarding cluster information. Options are available for clustering, or not, of various geographic areas.) The list of report woredas is going to be used to filter the epidemiological and environmental data into a smaller dataset to reduce processing time. 
 
@@ -139,7 +149,7 @@ report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>%
   dplyr::filter(report == 1)
 ```
 
-### Epidemiological data
+#### Epidemiological data
 
 For the epidemiology data, we will need weekly case counts per woreda of confirmed _P. falciparum_ & mixed, and _P. vivax_ malaria. To merge data from multiple files, we will use a "data corral" subfolder `data_epidemiological` in the `epidemia-demo` folder. 
 
@@ -173,7 +183,7 @@ am_epi_data <- corral_epidemiological(report_woreda_names = report_woredas$wored
 
 ```
 
-### Environmental data
+#### Environmental data
 
 For the environmental data, daily data is expected for each environmental variable for each woreda. 
 
@@ -194,7 +204,7 @@ The `corral_environment()` function takes a single argument, a tibble of woredas
 am_env_data <- corral_environment(report_woredas = report_woredas)
 ```
 
-### Optional: Date Filtering
+#### Optional: Date Filtering
 
 By default, the report will be generated for the last week of available epidemiological data in the `data_epidemiological/` corral folder. If you wish to run a report for a particular previous week, you can quickly filter the data after the corrals. Environmental data does not need to be filtered as it will run with whatever environmental data is or is not available. 
 
@@ -209,7 +219,7 @@ By default, the report will be generated for the last week of available epidemio
 ```
 
 
-### Environmental reference/climatology data
+#### Environmental reference/climatology data
 
 The environmental reference / climate data file `"data/env_ref_data.csv"` contains a average value for each the environmental variable for each woreda for each week of the year. These data are used with the most recently known daily environmental values to estimate future values of the environmental variables for forecasting. These data are also used to calculate anomalies. Anomalies are the difference between the current value and the historical average value. The anomalies are used in the modelling. The current reference file is a 17 year average (2001 - 2018).
 
@@ -218,7 +228,7 @@ The environmental reference / climate data file `"data/env_ref_data.csv"` contai
 am_env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 ```
 
-### Environmental variable information
+#### Environmental variable information
 
 The environmental variable information file `"data/environ_info.xlsx"` lists the environmental variables and important information about the variable.
 
@@ -234,9 +244,55 @@ am_env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 * `report_label`: The axis label to be used in creating the formatted report graphs
 
 
+#### Model object
 
-## Set up Forecast controls
+If previous models have been built, they can be read in here. This will skip the model building steps inside of `run_epidemia()` and save on processing time. Models will need to be rebuilt periodically, and how often that needs to be done is heavily dependent on the specific dataset and reporting needs. The script will look for all of the _P. falciparum_ and mixed models (RDS files that start with "pfm") and separately for _P. vivax_. It will automatically choose the model with the latest (most recent) file creation time. 
 
+```{r read-model}
+# read in latest model to use - select model per species with latest file created time
+# pfm
+all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
+if (nrow(all_pfm_models) > 0){
+  latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
+  pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+} else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
+
+#pv
+all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
+if (nrow(all_pv_models) > 0){
+  latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
+  pv_model_obj <- readRDS(latest_pv_model)$model_obj
+} else { latest_pv_model <- ""; pv_model_obj <- NULL}
+```
+
+Alternatively, specific models files can be selected instead:
+```{r read-model-pick}
+#or select specific file
+#latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
+#pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+
+#or select specific model
+#latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
+#pv_model_obj <- readRDS(latest_pv_model)$model_obj
+```
+
+The pfm or pv model_obj is what will be given as the `model_obj` argument to `run_epidemia()`. The file path and name in `latest_pfm_model` and `latest_pv_model` will be added to the output report data metadata (`params_meta`) for record keeping. 
+
+
+#### Parameter file
+
+```{r read-parameters}
+# read in forecast and event detection parameters
+source("data/model_parameters_amhara.R")
+```
+
+This parameter file contains the settings for forecasting and early detection. If a pre-built model is used, this must be the same parameters as when the model was generated. See next section for a full description of this file. 
+
+## `model_parameters_amhara.R`
+
+The parameter file contains all the settings for the model, forecasting, and early detection. 
+
+### Set up Forecast controls
 
 In this section, we first set the number of weeks in the report and set up for modeling and forecasting.
 
@@ -245,32 +301,44 @@ The malaria forecasting report will show a total of 26 weeks. We want to forecas
 
 ```{r fc-control-weeks}
 #total number of weeks in report (including forecast period)
-am_report_period <- 26
+report_period <- 26
 
-# forecast 8 weeks into the future
-am_forecast_future <- 8
+#forecast 8 weeks into the future
+forecast_future <- 8
 ```
+
+
+For the Amhara incidence, we report in rates of malaria cases per 1000 people at risk.
+
+```{r incidence}
+#report incidence rates per 1000 people
+inc_per <- 1000
+```
+
 
 Next, we are going to read in two files that contain which environmental variables to use, and the woreda clustering information. The model is based on a general additive model (GAM) regression of multiple factors, including the woreda cluster, lagged environmental drivers (anomalies of the environmental variables), long terms trends, and seasonality. 
 
+There is a switch to instead of using the anomalies of the environmental variables, to use the raw values instead (set `anom_env_var` to FALSE).
+
 ```{r model-vars}
 #read in model environmental variables to use
-am_pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", col_types = cols())
-am_pv_model_env <- read_csv("data/vivax_model_envvars.csv", col_types = cols())
+pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", col_types = cols())
+pv_model_env <- read_csv("data/vivax_model_envvars.csv", col_types = cols())
+
+#environmental data should be transformed to anomalies
+anom_env_var <- TRUE
 ```
 
-* These files just have a list of which `environ_var_code` variables to use in the modeling. 
+* These envvars files just have a list of which `environ_var_code` variables to use in the modeling. 
 
-For the _P. falciparum_ and mixed malaria model, the environmental variables are rainfall, daytime
-Land Surface Temperature (LST), and Normalized Difference Water Index (NDWI6; a satellite-
-derived index for vegetation water content). For the _P. vivax_ model, the environmental variables are rainfall, the mean of daytime and nighttime LST, and NDWI6.
+For the _P. falciparum_ and mixed malaria model, the environmental variables are rainfall, daytime Land Surface Temperature (LST), and Normalized Difference Water Index (NDWI6; a satellite-derived index for vegetation water content). For the _P. vivax_ model, the environmental variables are rainfall, the mean of daytime and nighttime LST, and NDWI6.
 
 Woredas were clustered by the pattern of how the malaria incidence responds to the environmental variables. Woredas where these _interactions_ between malaria incidence and environment variables were similar were placed in the same cluster. This gives us greater power for the forecast modeling because we have more datapoints in that cluster than in a single woreda alone. 
 
 ```{r model-cluster}
 #read in model cluster information
-am_pfm_clusters <- read_csv("data/falciparum_model_clusters.csv", col_types = cols())
-am_pv_clusters <- read_csv("data/vivax_model_clusters.csv", col_types = cols())
+pfm_clusters <- read_csv("data/falciparum_model_clusters.csv", col_types = cols())
+pv_clusters <- read_csv("data/vivax_model_clusters.csv", col_types = cols())
 ```
 
 * The field `cluster_id` gives the cluster value for each woreda, by `woreda_name`.
@@ -284,7 +352,7 @@ Each woreda and week is associated with environmental data on the day the week b
 
 ```{r forecast-lag-length}
 #set maximum environmental lag length (in days)
-am_lag_length <- 181
+lag_length <- 181
 ```
 
 Next are a few technical settings for how the modeling itself is run. There is an option to fit the model week by week, but this is very slow, and is not noticeably different from fitting the model once in our data. 
@@ -293,28 +361,30 @@ We are also taking advantage of parallel processing. We are splitting the modeli
 
 ```{r fc-modeling}
 #model fit frequency: fit once ("once), or fit every week ("week")
-am_fit_freq <- "once"
+fit_freq <- "once"
 
-#set number of cores to use on computer for parallel processing
+#set number of cores to use on computer for parallel processing (nthreads in bam discretization)
   #default value is the number of physical cores minus 1, minimum 1 core.
-am_cores <- max(detectCores(logical=FALSE) - 1, 1)
+cores <- max(detectCores(logical=FALSE) - 1, 1)
 ```
 
 Finally, we just put the forecasting controls into a list, so that we have one list object per species with all the controls for the forecasting. 
 
 ```{r fc-control-lists}
 #make control lists
-am_pfm_fc_control <- list(env_vars = am_pfm_model_env,
-                          clusters = am_pfm_clusters,
-                          lag_length = am_lag_length,
-                          fit_freq = am_fit_freq,
-                          ncores = am_cores)
+pfm_fc_control <- list(env_vars = pfm_model_env,
+                       anom_env = anom_env_var,
+                       clusters = pfm_clusters,
+                       lag_length = lag_length,
+                       fit_freq = fit_freq,
+                       ncores = cores)
 
-am_pv_fc_control <- list(env_vars = am_pv_model_env,
-                         clusters = am_pv_clusters,
-                         lag_length = am_lag_length,
-                         fit_freq = am_fit_freq,
-                         ncores = am_cores)
+pv_fc_control <- list(env_vars = pv_model_env,
+                      anom_env = anom_env_var,
+                      clusters = pv_clusters,
+                      lag_length = lag_length,
+                      fit_freq = fit_freq,
+                      ncores = cores)
 ```
 
 
@@ -329,10 +399,10 @@ The malaria forecasting report shows a total of 26 weeks. This will be 18 weeks 
 ```{r ed-control-weeks}
 #number of weeks in early detection period 
 # (last n weeks of known epidemiological data to summarize alerts)
-am_ed_summary_period <- 4
+ed_summary_period <- 4
 ```
 
-Next, we are going to set up the parameters used in the Farrington improved event detection algorithm. We will be using the `farringtonFlexible()` function as implemented in the `surveillance` package. 
+Next, we are going to set up the parameters used in the Farrington improved event detection algorithm. We will be using the `farringtonFlexible()` function as implemented in the `surveillance` package. We specify that we are using this algorithm with `ed_method = "Farrington"`. Currently, the only other built option is "None" for no event detection. 
 
 The central idea of event detection is to identify when the numer of cases exceeds a baseline threshold, and this detection happens as close to real-time as possible. Event detection is done in a prospective manner, where the algorithm knows past data up to the present. This is different from retrospective methods, where events are identified from historical data. There are many different prospective event detection algorithms. Each algorithm calculates baseline thresholds differently and have different assumptions about the pattern of disease transmission, speed of outbreak development, seasonality, and trends. 
 
@@ -341,21 +411,23 @@ The Farrington Original method was developed in 1996 and an improved version was
 The parameters below are the Farrington improved versions we tested that had the highest percent of events caught and the lowest rate of false alarms. The Farrington method performed better than the other methods we compared: Center for Disease Control and Prevention (CDC) Early Aberation Reporting System (EARS) and the first EPIDEMIA system using dynamic linear modeling. We tested each species separately, so there are different settings for _P. falciparum_ (and mixed) and _P. vivax_. The parameters are all added to a list so that we have one object that has all the controls for Farrington event detection. 
 
 ```{r ed-farrington}
+#event detection algorithm
+ed_method <- "Farrington"
+
 #settings for Farrington event detection algorithm
-am_pfm_ed_control <- list(
+pfm_ed_control <- list(
   w = 3, reweight = TRUE, weightsThreshold = 2.58,
   trend = TRUE, pThresholdTrend = 0,
   populationOffset = TRUE,
   noPeriods = 12, pastWeeksNotIncluded = 4,
   thresholdMethod = "nbPlugin")
 
-am_pv_ed_control <- list(
+pv_ed_control <- list(
   w = 4, reweight = TRUE, weightsThreshold = 2.58,
   trend = TRUE, pThresholdTrend = 0,
   populationOffset = TRUE,
   noPeriods = 10, pastWeeksNotIncluded = 4,
   thresholdMethod = "nbPlugin")
-
 ```
 
 Farrington flexible settings:
@@ -374,6 +446,17 @@ For more details, please run `?surveillance::farringtonFlexible` in the RStudio 
 
 
 
+## `run_epidemiar_demo.R` Part II
+
+This script is divided into sections:
+
+1. Loading packages & functions
+2. Reading in the data
+3. Run epidemia & create report data
+4. Merge species data, save, and create pdf report
+
+Part II covers the last two sections. 
+
 ## Run epidemiar & create report data
 
 Now to actually run the model and generate the report data!  Basically, we gather up all the data and settings, and feed it to the `run_epidemia()` function in our `epidemiar` package.  We are also setting that we want incidence reported as per 1000 persons. 
@@ -386,60 +469,82 @@ Each malaria species is run on its own, with their respective settings. The main
 #Run modeling to get report data
 # with check on current epidemiology and environmental data sets
 
-if (exists("am_epi_data") & exists("am_env_data")){
+if (exists("epi_data") & exists("env_data")){
   
   # P. falciparum & mixed
   message("Running P. falciparum & mixed")
-  pfm_reportdata <- run_epidemia(epi_data = am_epi_data, 
+  pfm_reportdata <- run_epidemia(epi_data = epi_data, 
                                  casefield = test_pf_tot, 
                                  populationfield = pop_at_risk,
-                                 #incidence rates per 1000
-                                 inc_per = 1000,
+                                 inc_per = inc_per,
                                  groupfield = woreda_name, 
                                  week_type = "ISO",
-                                 report_period = am_report_period, 
-                                 ed_summary_period = am_ed_summary_period,
-                                 ed_method = "Farrington", 
-                                 ed_control = am_pfm_ed_control,
-                                 env_data = am_env_data, 
+                                 report_period = report_period, 
+                                 ed_summary_period = ed_summary_period,
+                                 ed_method = ed_method, 
+                                 ed_control = pfm_ed_control,
+                                 env_data = env_data, 
                                  obsfield = environ_var_code, 
                                  valuefield = obs_value, 
-                                 forecast_future = am_forecast_future, 
-                                 fc_control = am_pfm_fc_control,
-                                 env_ref_data = am_env_ref_data, 
-                                 env_info = am_env_info)
+                                 forecast_future = forecast_future, 
+                                 fc_control = pfm_fc_control,
+                                 env_ref_data = env_ref_data, 
+                                 env_info = env_info,
+                                 model_obj = pfm_model_obj)
   
   # P. vivax
   message("Running P. vivax")
-  pv_reportdata <- run_epidemia(epi_data = am_epi_data, 
+  pv_reportdata <- run_epidemia(epi_data = epi_data, 
                                 casefield = test_pv_only, 
                                 populationfield = pop_at_risk,
-                                #incidence rates per 1000
-                                inc_per = 1000,
+                                inc_per = inc_per,
                                 groupfield = woreda_name, 
                                 week_type = "ISO",
-                                report_period = am_report_period, 
-                                ed_summary_period = am_ed_summary_period,
-                                ed_method = "Farrington", 
-                                ed_control = am_pfm_ed_control,
-                                env_data = am_env_data, 
+                                report_period = report_period, 
+                                ed_summary_period = ed_summary_period,
+                                ed_method = ed_method, 
+                                ed_control = pv_ed_control,
+                                env_data = env_data, 
                                 obsfield = environ_var_code, 
                                 valuefield = obs_value, 
-                                forecast_future = am_forecast_future, 
-                                fc_control = am_pv_fc_control,
-                                env_ref_data = am_env_ref_data, 
-                                env_info = am_env_info)
+                                forecast_future = forecast_future, 
+                                fc_control = pv_fc_control,
+                                env_ref_data = env_ref_data, 
+                                env_info = env_info,
+                                model_obj = pv_model_obj)
   
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 2 for data error messages.")
 }
+
+#append model information to report data metadata
+pfm_reportdata$params_meta$model_used <- latest_pfm_model
+pv_reportdata$params_meta$model_used <- latest_pv_model
 ```
+
+
+
+<<<>>><<<>>
+
+
+
+
+
 
 Depending how powerful your computer is, this could take anywhere from 3 to 15 minutes or so for each species. 
 
 The `run_epidemia()` function returns one object. For _P. falciparum_ we called this object `pfm_reportdata`, and `pv_repordata` for _P. vivax_. The reportdata object is a list of tibbles of the outputs from the modeling, early detection and early warning algorithms, and other results. 
 (Note: In the Amhara implementation, we have two species that we then combine the results before sending it to the formatting script. You could have multiple diseases you are working with, or you could have only one. Your situation will then drive how you code your report formatting script/Rnw file.)
+
+
+
+
+<<<>>><<<>>> model run script
+
+
+
+
 
 
 ### Report data output
