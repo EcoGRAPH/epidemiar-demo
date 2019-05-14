@@ -28,7 +28,7 @@ lag_length <- 181
 #model fit frequency: fit once ("once), or fit every week ("week")
 fit_freq <- "once"
 
-#set number of cores to use on computer for parallel processing
+#set number of cores to use on computer for parallel processing (nthreads in bam discretization)
 #default value is the number of physical cores minus 1, minimum 1 core.  Can be set to different here.
 cores <- max(detectCores(logical=FALSE) - 1, 1)
 
@@ -50,11 +50,12 @@ pv_fc_control <- list(env_vars = pv_model_env,
 
 # Set up early detection controls ---------------------------------------
 
+#number of weeks in early detection period 
+# (last n weeks of known epidemiological data to summarize alerts)
+ed_summary_period <- 4
+
 #event detection algorithm
 ed_method <- "Farrington"
-
-#number of weeks in early detection period (last n weeks of known epidemiological data to summarize alerts)
-ed_summary_period <- 4
 
 #settings for Farrington event detection algorithm
 pfm_ed_control <- list(

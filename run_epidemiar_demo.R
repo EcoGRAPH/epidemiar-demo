@@ -62,9 +62,6 @@ env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
-# read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
-
 # read in latest model to use - select model per species with latest file created time
 # pfm
 all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
@@ -85,6 +82,10 @@ if (nrow(all_pv_models) > 0){
 #or select specific model
 #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
 #pv_model_obj <- readRDS(latest_pv_model)$model_obj
+
+
+# read in forecast and event detection parameters
+source("data/model_parameters_amhara.R")
 
 
 # 3. Run epidemia & create report data ---------------------------------------
