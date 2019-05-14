@@ -44,142 +44,109 @@ report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>%
   #Note: report woredas must have sufficient epi data, env data, and model cluster information, in appropriate files
 
 # read & process case data needed for report
-am_epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
+epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
 
 # read & process environmental data for woredas in report
-am_env_data <- corral_environment(report_woredas = report_woredas)
+env_data <- corral_environment(report_woredas = report_woredas)
 
 # ## Optional: Date Filtering for running certain week's report
 # req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) #week is always end of the week, 7th day
-# am_epi_data <- am_epi_data %>% 
+# epi_data <- epi_data %>% 
 #   filter(obs_date <= req_date)
-# am_env_data <- am_env_data %>% 
+# env_data <- env_data %>% 
 #   filter(obs_date <- req_date)
 
 # read in climatology / environmental reference data
-am_env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
+env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 
 # read in environmental info file
-am_env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
+env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
+
+# read in forecast and event detection parameters
+source("data/model_parameters_amhara.R")
+
+# read in latest model to use - select model per species with latest file created time
+# pfm
+all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
+if (nrow(all_pfm_models) > 0){
+  latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
+  pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+} else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
+#or select specific file
+#latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
+#pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+
+#pv
+all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
+if (nrow(all_pv_models) > 0){
+  latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
+  pv_model_obj <- readRDS(latest_pv_model)$model_obj
+} else { latest_pv_model <- ""; pv_model_obj <- NULL}
+#or select specific model
+#latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
+#pv_model_obj <- readRDS(latest_pv_model)$model_obj
 
 
-# 3. Set up Forecast controls ---------------------------------------------
-
-#total number of weeks in report (including forecast period)
-am_report_period <- 26
-
-# forecast 8 weeks into the future
-am_forecast_future <- 8
-
-#read in model environmental variables to use
-am_pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", col_types = cols())
-am_pv_model_env <- read_csv("data/vivax_model_envvars.csv", col_types = cols())
-
-#read in model cluster information
-am_pfm_clusters <- read_csv("data/falciparum_model_clusters.csv", col_types = cols())
-am_pv_clusters <- read_csv("data/vivax_model_clusters.csv", col_types = cols())
-
-#set maximum environmental lag length (in days)
-am_lag_length <- 181
-
-#model fit frequency: fit once ("once), or fit every week ("week")
-am_fit_freq <- "once"
-
-#set number of cores to use on computer for parallel processing
-#default value is the number of physical cores minus 1, minimum 1 core.  Can be set to different here.
-am_cores <- max(detectCores(logical=FALSE) - 1, 1)
-
-#make control lists
-am_pfm_fc_control <- list(env_vars = am_pfm_model_env,
-                          clusters = am_pfm_clusters,
-                          lag_length = am_lag_length,
-                          fit_freq = am_fit_freq,
-                          ncores = am_cores)
-
-am_pv_fc_control <- list(env_vars = am_pv_model_env,
-                         clusters = am_pv_clusters,
-                         lag_length = am_lag_length,
-                         fit_freq = am_fit_freq,
-                         ncores = am_cores)
-
-
-# 4. Set up Early Detection controls ---------------------------------------
-
-#number of weeks in early detection period (last n weeks of known epidemiological data to summarize alerts)
-am_ed_summary_period <- 4
-
-#settings for Farrington event detection algorithm
-am_pfm_ed_control <- list(
-  w = 3, reweight = TRUE, weightsThreshold = 2.58,
-  trend = TRUE, pThresholdTrend = 0,
-  populationOffset = TRUE,
-  noPeriods = 12, pastWeeksNotIncluded = 4,
-  thresholdMethod = "nbPlugin")
-
-am_pv_ed_control <- list(
-  w = 4, reweight = TRUE, weightsThreshold = 2.58,
-  trend = TRUE, pThresholdTrend = 0,
-  populationOffset = TRUE,
-  noPeriods = 10, pastWeeksNotIncluded = 4,
-  thresholdMethod = "nbPlugin")
-
-
-# 5. Run epidemia & create report data ---------------------------------------
+# 3. Run epidemia & create report data ---------------------------------------
 
 #Run modeling to get report data
 # with check on current epidemiology and environmental data sets
 
-if (exists("am_epi_data") & exists("am_env_data")){
+if (exists("epi_data") & exists("env_data")){
   
   # P. falciparum & mixed
   message("Running P. falciparum & mixed")
-  pfm_reportdata <- run_epidemia(epi_data = am_epi_data, 
+  pfm_reportdata <- run_epidemia(epi_data = epi_data, 
                                  casefield = test_pf_tot, 
                                  populationfield = pop_at_risk,
-                                 #incidence rates per 1000
-                                 inc_per = 1000,
+                                 inc_per = inc_per,
                                  groupfield = woreda_name, 
                                  week_type = "ISO",
-                                 report_period = am_report_period, 
-                                 ed_summary_period = am_ed_summary_period,
-                                 ed_method = "Farrington", 
-                                 ed_control = am_pfm_ed_control,
-                                 env_data = am_env_data, 
+                                 report_period = report_period, 
+                                 ed_summary_period = ed_summary_period,
+                                 ed_method = ed_method, 
+                                 ed_control = pfm_ed_control,
+                                 env_data = env_data, 
                                  obsfield = environ_var_code, 
                                  valuefield = obs_value, 
-                                 forecast_future = am_forecast_future, 
-                                 fc_control = am_pfm_fc_control,
-                                 env_ref_data = am_env_ref_data, 
-                                 env_info = am_env_info)
+                                 forecast_future = forecast_future, 
+                                 fc_control = pfm_fc_control,
+                                 env_ref_data = env_ref_data, 
+                                 env_info = env_info,
+                                 model_obj = pfm_model_obj)
   
   # P. vivax
   message("Running P. vivax")
-  pv_reportdata <- run_epidemia(epi_data = am_epi_data, 
+  pv_reportdata <- run_epidemia(epi_data = epi_data, 
                                 casefield = test_pv_only, 
                                 populationfield = pop_at_risk,
-                                #incidence rates per 1000
-                                inc_per = 1000,
+                                inc_per = inc_per,
                                 groupfield = woreda_name, 
                                 week_type = "ISO",
-                                report_period = am_report_period, 
-                                ed_summary_period = am_ed_summary_period,
-                                ed_method = "Farrington", 
-                                ed_control = am_pv_ed_control,
-                                env_data = am_env_data, 
+                                report_period = report_period, 
+                                ed_summary_period = ed_summary_period,
+                                ed_method = ed_method, 
+                                ed_control = pv_ed_control,
+                                env_data = env_data, 
                                 obsfield = environ_var_code, 
                                 valuefield = obs_value, 
-                                forecast_future = am_forecast_future, 
-                                fc_control = am_pv_fc_control,
-                                env_ref_data = am_env_ref_data, 
-                                env_info = am_env_info)
+                                forecast_future = forecast_future, 
+                                fc_control = pv_fc_control,
+                                env_ref_data = env_ref_data, 
+                                env_info = env_info,
+                                model_obj = pv_model_obj)
   
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 2 for data error messages.")
 }
 
+#append model information to report data metadata
+pfm_reportdata$params_meta$model_used <- latest_pfm_model
+pv_reportdata$params_meta$model_used <- latest_pv_model
 
-# 6. Merge species data, Save, & Create PDF Report -------------------------------
+
+# 4. Merge species data, Save, & Create PDF Report -------------------------------
 
 if (exists("pfm_reportdata") & exists("pv_reportdata")){
   
