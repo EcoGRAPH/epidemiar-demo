@@ -77,6 +77,7 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 source("data/model_parameters_amhara.R")
 
 # read in latest model to use - select model per species with latest file created time
+# if you are running historical reports, make sure the model used makes sense
 # pfm
 all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
 if (nrow(all_pfm_models) > 0){
