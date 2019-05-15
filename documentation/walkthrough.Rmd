@@ -1,18 +1,19 @@
 ---
-title: |
-  | EPIDEMIA Malaria Forecasting System: 
-  | Detailed Walk-through Guide
-subtitle: For epidemiar-demo version 1.4.0
+title: "| EPIDEMIA Malaria Forecasting System: \n| Detailed Walk-through Guide\n"
 author: |
   | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
   | Department of Geography and Environmental Sustainability, University of Oklahoma
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
-output: 
+output:
   pdf_document:
-    toc: true
+    number_sections: yes
+    toc: yes
     toc_depth: 3
-    number_sections: true
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
 urlcolor: blue
 ---
 
@@ -35,7 +36,7 @@ For more details on the `epidemiar` package, see the vignettes:
 * Overview: `vignette("overview-epidemiar", package = "epidemiar")`, and
 * Input data and modeling parameters: `vignette("data-modeling", package = "epidemiar")`.  
 
-This demo is an example of how you might organize your data and settings to feed into `epidemiar::run_epidemia()`. 
+This demo is an example of how data and settings can be organized to feed into `epidemiar::run_epidemia()`. 
 
 Goal & end product: The final report presents a malaria forecasting report for 47 woredas in the Amhara region for the past 18 weeks through 8 weeks forecasted into the future (26 total weeks). Malaria is broken out by species: _Plasmodium falciparum_ and mixed species, and also _P. vivax_. The report includes environmental and epidemiological surveillance data. 
 
@@ -55,7 +56,7 @@ We are going to use an R script to:
 
 If you have not installed `epidemiar`, or MikTeX ("Install missing packages on-the-fly" = Yes; and restart the computer) yet, please see the Install & Update Guide (`"documentation/install_update.pdf"`) for details on those steps. 
 
-Video tutorials were made for our colleagues for a previous version of the software. Some of the details have since changed, but you can view them here: https://www.youtube.com/channel/UC-NKR1cer4wkg8hHHP7K9Vw.
+Video tutorials were made for our colleagues using a previous version of the software. Some of the details have since changed, but you can view them here: https://www.youtube.com/channel/UC-NKR1cer4wkg8hHHP7K9Vw.
 
 Overview diagram of how `epidemiar-demo` (custom R project) fits into the EPIDEMIA Forecasting System:
 ```{r echo = FALSE, fig.align ='center', out.width = "65%"}
@@ -78,7 +79,7 @@ Open the `epidemiar_demo.Rproj`. From here, there are three scripts of major imp
 3. The parameter file `data/model_parameters_amhara.R` contains the common parameters for both scripts. 
 
 
-## `run_epidemiar_demo.R` Part I
+## `run_epidemiar_demo.R`: Part I
 
 This script is divided into sections:
 
@@ -179,7 +180,7 @@ The script will use the most recent week of data as the malaria report date, i.e
 
 ```{r read-case}
 # read & process case data needed for report
-am_epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
+epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
 
 ```
 
@@ -201,7 +202,7 @@ The `corral_environment()` function takes a single argument, a tibble of woredas
 
 ```{r read-env}
 # read & process environmental data for woredas in report
-am_env_data <- corral_environment(report_woredas = report_woredas)
+env_data <- corral_environment(report_woredas = report_woredas)
 ```
 
 #### Optional: Date Filtering
@@ -212,9 +213,9 @@ By default, the report will be generated for the last week of available epidemio
 # ## Optional: Date Filtering for running certain week's report
 # # week is always end of the week, 7th day
 # req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) 
-# am_epi_data <- am_epi_data %>% 
+# epi_data <- epi_data %>% 
 #   filter(obs_date <= req_date)
-# am_env_data <- am_env_data %>% 
+# env_data <- env_data %>% 
 #   filter(obs_date <- req_date)
 ```
 
@@ -225,7 +226,7 @@ The environmental reference / climate data file `"data/env_ref_data.csv"` contai
 
 ```{r read-envref}
 # read in climatology / environmental reference data
-am_env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
+env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 ```
 
 #### Environmental variable information
@@ -234,7 +235,7 @@ The environmental variable information file `"data/environ_info.xlsx"` lists the
 
 ```{r read-envinfo}
 # read in environmental info file
-am_env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
+env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 ```
 
 * `environ_var_code`: Short name for the environmental variable, using the GEE variable names
@@ -251,14 +252,16 @@ If previous models have been built, they can be read in here. This will skip the
 ```{r read-model}
 # read in latest model to use - select model per species with latest file created time
 # pfm
-all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
+all_pfm_models <- file.info(list.files("data/models/", 
+                                       full.names = TRUE, pattern="^pfm.*\\.RDS$"))
 if (nrow(all_pfm_models) > 0){
   latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
   pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
 } else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
 
 #pv
-all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
+all_pv_models <- file.info(list.files("data/models/", 
+                                      full.names = TRUE, pattern="^pv.*\\.RDS$"))
 if (nrow(all_pv_models) > 0){
   latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
   pv_model_obj <- readRDS(latest_pv_model)$model_obj
@@ -266,14 +269,14 @@ if (nrow(all_pv_models) > 0){
 ```
 
 Alternatively, specific models files can be selected instead:
-```{r read-model-pick}
+```{r read-model-pick, eval = FALSE}
 #or select specific file
-#latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
-#pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
+pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
 
 #or select specific model
-#latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
-#pv_model_obj <- readRDS(latest_pv_model)$model_obj
+latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
+pv_model_obj <- readRDS(latest_pv_model)$model_obj
 ```
 
 The pfm or pv model_obj is what will be given as the `model_obj` argument to `run_epidemia()`. The file path and name in `latest_pfm_model` and `latest_pv_model` will be added to the output report data metadata (`params_meta`) for record keeping. 
@@ -292,7 +295,7 @@ This parameter file contains the settings for forecasting and early detection. I
 
 The parameter file contains all the settings for the model, forecasting, and early detection. 
 
-### Set up Forecast controls
+### Set up forecast controls
 
 In this section, we first set the number of weeks in the report and set up for modeling and forecasting.
 
@@ -363,7 +366,7 @@ We are also taking advantage of parallel processing. We are splitting the modeli
 #model fit frequency: fit once ("once), or fit every week ("week")
 fit_freq <- "once"
 
-#set number of cores to use on computer for parallel processing (nthreads in bam discretization)
+#set number of cores to use for parallel processing (nthreads in bam discretization)
   #default value is the number of physical cores minus 1, minimum 1 core.
 cores <- max(detectCores(logical=FALSE) - 1, 1)
 ```
@@ -389,7 +392,7 @@ pv_fc_control <- list(env_vars = pv_model_env,
 
 
 
-## Set up Early Detection controls
+### Set up early detection controls
 
 In this section, we set up the parameters for the early detection algorithm.
 
@@ -446,7 +449,7 @@ For more details, please run `?surveillance::farringtonFlexible` in the RStudio 
 
 
 
-## `run_epidemiar_demo.R` Part II
+## `run_epidemiar_demo.R`: Part II
 
 This script is divided into sections:
 
@@ -457,13 +460,15 @@ This script is divided into sections:
 
 Part II covers the last two sections. 
 
-## Run epidemiar & create report data
+### Run epidemiar & create report data
 
 Now to actually run the model and generate the report data!  Basically, we gather up all the data and settings, and feed it to the `run_epidemia()` function in our `epidemiar` package.  We are also setting that we want incidence reported as per 1000 persons. 
 
 Each malaria species is run on its own, with their respective settings. The main epidemiological dataset contains both species in different columns, and therefore the `casefield` changes between "test_pf_tot" for _P. falciparum_ and mixed species, and "test_pv_only" for _P. vivax_. Similarly, the controls for event detection (`ed_control`) and forecasting (`am_pfm_fc_control`) also change.
 
-(Note: Since this is a long script, and early error messages may have been missed, we've added a simple check to make sure the epidemiological and environmental datasets have been generated, and if not, it'll produce an informative message towards this end of the script.)
+After the report data objects have been generated, we add to the metadata, `$params_meta`, a field `$model_used`, to give the file location and name of the model used. If no model was passed in, i.e. it created a model on the fly with the current data, then this field will be an empty string.
+
+Note: Since this is a long script, and early error messages may have been missed, we've added a simple check to make sure the epidemiological and environmental datasets have been generated, and if not, it'll produce an informative message towards this end of the script.
 
 ```{r run-epidemia}
 #Run modeling to get report data
@@ -513,38 +518,21 @@ if (exists("epi_data") & exists("env_data")){
                                 env_info = env_info,
                                 model_obj = pv_model_obj)
   
+  #append model information to report data metadata
+  pfm_reportdata$params_meta$model_used <- latest_pfm_model
+  pv_reportdata$params_meta$model_used <- latest_pv_model
+  
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 2 for data error messages.")
 }
-
-#append model information to report data metadata
-pfm_reportdata$params_meta$model_used <- latest_pfm_model
-pv_reportdata$params_meta$model_used <- latest_pv_model
 ```
 
 
-
-<<<>>><<<>>
-
-
-
-
-
-
-Depending how powerful your computer is, this could take anywhere from 3 to 15 minutes or so for each species. 
+The processing time depends on how powerful your computer is and the settings used for modeling. Passing in a model reduces the time, since it does not have to calculate the model first.  Expect this to take about 3 to 5 minutes per species on an average computer. 
 
 The `run_epidemia()` function returns one object. For _P. falciparum_ we called this object `pfm_reportdata`, and `pv_repordata` for _P. vivax_. The reportdata object is a list of tibbles of the outputs from the modeling, early detection and early warning algorithms, and other results. 
 (Note: In the Amhara implementation, we have two species that we then combine the results before sending it to the formatting script. You could have multiple diseases you are working with, or you could have only one. Your situation will then drive how you code your report formatting script/Rnw file.)
-
-
-
-
-<<<>>><<<>>> model run script
-
-
-
-
 
 
 ### Report data output
@@ -612,7 +600,7 @@ pfm_reportdata$environ_anomalies
 
 This tibble dataset contains the differences of the environmental variable values from the climatology/reference average during the early detection period. These data are used to make anomaly maps in the third section of the pdf report. 
 
-* `anom_ed_mean`: The mean of the anomalies per environmental variable per geographic group summarized during the early detection period. The anomalies are calculated as the difference from the observed value to the historical mean for that week of the year.
+* `anom_ed_mean`: The mean of the anomalies per environmental variable per geographic group summarized during the early detection period. These anomalies are calculated as the difference from the observed value to the historical mean for that week of the year. (Not to be confused with the daily anomalies calculated for modeling and forecasting.)
 
 
 #### params_meta
@@ -626,7 +614,7 @@ This is the regression object from the general additive model (GAM, parallelized
 
 
 
-## Merge species data, save, and create pdf report
+### Merge species data, save, and create pdf report
 
 The Amhara malaria demo data has two different reportdata objects ( _P. falciparum_ and mixed species, and _P. vivax_), which need to be merged together into one object to save and to create the single pdf report. 
 
@@ -666,7 +654,7 @@ This function will save out the merged report_data object in two places:
 
 (Note: This function also takes in the location/name of the rnw formatting script as well, so there is the possibility of having multiple different report formatting that uses the same input data. The save_file and input file of the formatting_file will need to match up correctly.)
 
-This function calls a subfunction `create_pdf()` which calls the Sweave formatting script, `report/epidemia_report_demo.Rnw`, to read in the report data (`report/report_data.RData`, as specified in the rnw file) we just created, and to create the formatted pdf report. This `Rnw` Sweave file has been written specifically for the malaria forecasting report in Amhara. The `Rnw` file also uses some additional data: shapefiles (processed into R data files as `data/am.rda` and `data/am_simpl.rda`), and the woreda reference list (`data/woredas.xlsx`). 
+This function calls a subfunction named `create_pdf()` which calls the Sweave formatting script, `report/epidemia_report_demo.Rnw`, to read in the report data (`report/report_data.RData`, as specified in the rnw file) we just created, and to create the formatted pdf report. This `Rnw` Sweave file has been written specifically for the malaria forecasting report in Amhara. The `Rnw` file also uses some additional data: shapefiles (processed into R data files as `data/am.rda` and `data/am_simpl.rda`), and the woreda reference list (`data/woredas.xlsx`). 
 
 This subfunction will save two copies of the pdf formatted report:
 
@@ -676,7 +664,7 @@ This subfunction will save two copies of the pdf formatted report:
 (Note: While only minimally tested, the save function was written to also handle single output dataset, i.e. ones that are not split by species. Give the output to the `rpt_data_main` argument, and leave `rpt_data_secd` NULL.)
 
 
-## Alternative: Create pdf report
+### Alternative: Create pdf report
 
 You can also call the `create_pdf()` function directly is you want to generate a formatted pdf report from a previously save report_data object. The `new_data` file will overwrite `report_data_file`, which needs to be the input file that is coded inside the `formatting_file` (rnw script). 
 
@@ -695,9 +683,31 @@ create_pdf(new_data = "report/report_data_2018W52.RData",
 ```
 
 
-## Alternative: Rnw compile pdf
+### Alternative: Rnw compile pdf
 
 If you have not set MiKTeX to install missing packages on the fly without asking, the pdf creation will fail. You can compile the pdf once from the Rnw itself, and answer yes to the missing packages installation prompts. Then you can return to using the functions above. In RStudio, open `epidemia_report_demo.Rnw`, and click on `Compile PDF`. 
+
+
+## `create_epidemiar_demo.R`
+
+The `create_epidemiar_demo.R` is set up like `run_epidemiar_demo.R`, but uses the argument `run_epidemia(..., model_run = TRUE)`. This only creates, and returns, a model (regression object) and metadata on the model. The last section saves the model in the `data/models` folder with two dates in the file: the first is the year and week of the epidemiological data available when the model was generated, and the second is the date the model was created. 
+
+```{r model-save, eval = FALSE}
+# Save models for later use ---------------------------------------------
+
+# add last epidemiological known data date, and today's date to file name
+save_filetail <- paste0("_", isoyear(max(epi_data$obs_date)), 
+                        "W", isoweek(max(epi_data$obs_date)),
+                        "_", format(Sys.Date(), "%Y%m%d"))
+pfm_name <- paste0("pfm_model", save_filetail, ".RDS")
+pv_name <- paste0("pv_model", save_filetail, ".RDS")
+
+#save to /data
+saveRDS(pfm_model, file.path("data/models", pfm_name))
+saveRDS(pv_model, file.path("data/models", pv_name))
+```
+
+When the `run_epidemiar_demo.R` script runs, it will automatically pull the model with the latest file creation time to use (if the user does not set a specific model file), and feeds it into `run_epidemiar(..., model_obj = {regression object})`. 
 
 
 # Looping Version
@@ -707,7 +717,8 @@ As a prospective report, this script would be run about every week or so as new 
 The example below would be for isoweeks 15, 16, 17, an 18 in isoyear 2016, plus those same weeks in 2017. The `weekday` variable is "7" here, indicating the date at the end of the isoweek, which is what is used in the simulated malaria dataset. 
 
 ```{r loop}
-# This version of the script can be used to loop through multiple weeks to generate reports for each.
+# This version of the script can be used to loop through multiple weeks 
+#   to generate reports for each.
 #
 # Set the loop variable to TRUE, and change the isoyear and isoweeks wanted. 
 #
