@@ -28,7 +28,7 @@ lag_length <- 181
 #model fit frequency: fit once ("once), or fit every week ("week")
 fit_freq <- "once"
 
-#set number of cores to use on computer for parallel processing (nthreads in bam discretization)
+#set number of cores to use for parallel processing (nthreads in bam discretization)
 #default value is the number of physical cores minus 1, minimum 1 core.  Can be set to different here.
 cores <- max(detectCores(logical=FALSE) - 1, 1)
 
