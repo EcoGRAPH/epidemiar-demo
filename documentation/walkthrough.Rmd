@@ -47,7 +47,7 @@ knitr::include_graphics("figs/report_alertsummary.JPG")
 knitr::include_graphics("figs/report_woreda_example.JPG")
 ```
 
-We are going to use an R script to: 
+We are going to use R scripts to: 
 
 * bring in malaria surveillance and remotely-sensed environmental data
 * set some model and event detection parameters
@@ -209,20 +209,20 @@ env_data <- corral_environment(report_woredas = report_woredas)
 
 By default, the report will be generated for the last week of available epidemiological data in the `data_epidemiological/` corral folder. If you wish to run a report for a particular previous week, you can quickly filter the data after the corrals. Environmental data does not need to be filtered as it will run with whatever environmental data is or is not available. 
 
-```{r date-filter}
-# ## Optional: Date Filtering for running certain week's report
-# # week is always end of the week, 7th day
-# req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) 
-# epi_data <- epi_data %>% 
-#   filter(obs_date <= req_date)
-# env_data <- env_data %>% 
-#   filter(obs_date <- req_date)
+```{r date-filter, eval = FALSE}
+## Optional: Date Filtering for running certain week's report
+# week is always end of the week, 7th day
+req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) 
+epi_data <- epi_data %>% 
+  filter(obs_date <= req_date)
+env_data <- env_data %>% 
+  filter(obs_date <- req_date)
 ```
 
 
 #### Environmental reference/climatology data
 
-The environmental reference / climate data file `"data/env_ref_data.csv"` contains a average value for each the environmental variable for each woreda for each week of the year. These data are used with the most recently known daily environmental values to estimate future values of the environmental variables for forecasting. These data are also used to calculate anomalies. Anomalies are the difference between the current value and the historical average value. The anomalies are used in the modelling. The current reference file is a 17 year average (2001 - 2018).
+The environmental reference / climate data file `"data/env_GEE_ref_data.csv"` contains a average value for each the environmental variable for each woreda for each week of the year. These data are used with the most recently known daily environmental values to estimate future values of the environmental variables for forecasting. These data are also used to calculate anomalies. Anomalies are the difference between the current value and the historical average value. The anomalies are used in the modelling. The current reference file is a 17 year average (2001 - 2018).
 
 ```{r read-envref}
 # read in climatology / environmental reference data
@@ -462,9 +462,9 @@ Part II covers the last two sections.
 
 ### Run epidemiar & create report data
 
-Now to actually run the model and generate the report data!  Basically, we gather up all the data and settings, and feed it to the `run_epidemia()` function in our `epidemiar` package.  We are also setting that we want incidence reported as per 1000 persons. 
+Now to actually run the model and generate the report data!  Basically, we gather up all the data and settings, and feed it to the `run_epidemia()` function in our `epidemiar` package. 
 
-Each malaria species is run on its own, with their respective settings. The main epidemiological dataset contains both species in different columns, and therefore the `casefield` changes between "test_pf_tot" for _P. falciparum_ and mixed species, and "test_pv_only" for _P. vivax_. Similarly, the controls for event detection (`ed_control`) and forecasting (`am_pfm_fc_control`) also change.
+Each malaria species is run on its own, with their respective settings. The main epidemiological dataset contains both species in different columns, and therefore the `casefield` changes between "test_pf_tot" for _P. falciparum_ and mixed species, and "test_pv_only" for _P. vivax_. Similarly, the controls for event detection (`ed_control`) and forecasting (`pfm_fc_control`) also change.
 
 After the report data objects have been generated, we add to the metadata, `$params_meta`, a field `$model_used`, to give the file location and name of the model used. If no model was passed in, i.e. it created a model on the fly with the current data, then this field will be an empty string.
 
