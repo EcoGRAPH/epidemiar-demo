@@ -137,14 +137,15 @@ if (exists("epi_data") & exists("env_data")){
                                 env_info = env_info,
                                 model_obj = pv_model_obj)
   
+  #append model information to report data metadata
+  pfm_reportdata$params_meta$model_used <- latest_pfm_model
+  pv_reportdata$params_meta$model_used <- latest_pv_model
+  
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 2 for data error messages.")
 }
 
-#append model information to report data metadata
-pfm_reportdata$params_meta$model_used <- latest_pfm_model
-pv_reportdata$params_meta$model_used <- latest_pv_model
 
 
 # 4. Merge species data, Save, & Create PDF Report -------------------------------

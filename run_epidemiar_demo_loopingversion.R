@@ -120,7 +120,7 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
       filter(obs_date <= this_week)
     this_env_data <- env_data_full %>%
       filter(obs_date <= this_week)
-  
+    
     # P. falciparum & mixed
     message("Running P. falciparum & mixed")
     pfm_reportdata <- run_epidemia(epi_data = this_epi_data, # 
@@ -163,23 +163,28 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
                                   env_info = env_info,
                                   model_obj = pv_model_obj)
     
-  #merging pfm & pv data, save out, and create pdf
-  merge_save_report(rpt_data_main = pfm_reportdata, 
-                    rpt_data_secd = pv_reportdata,
-                    #mark sections as P. falciparum and mixed (pfm) or P. vivax (pv)
-                    # used in the epidemia_report_demo.Rnw file for the formatted report
-                    var_labs = c("pfm","pv"),
-                    #save out the report data in the file that the formatting file reads
-                    save_file = "report/report_data.RData",
-                    #save out a second copy of the report data with year and week numbers in the name file
-                    second_save = TRUE, 
-                    #create the pdf
-                    create_report = TRUE,
-                    #which Rnw file to use to create pdf
-                    formatting_file = "epidemia_report_demo.Rnw",
-                    #show the pdf immediately after creating
-                    show_report = FALSE)
-  
+    #append model information to report data metadata
+    pfm_reportdata$params_meta$model_used <- latest_pfm_model
+    pv_reportdata$params_meta$model_used <- latest_pv_model
+    
+    
+    #merging pfm & pv data, save out, and create pdf
+    merge_save_report(rpt_data_main = pfm_reportdata, 
+                      rpt_data_secd = pv_reportdata,
+                      #mark sections as P. falciparum and mixed (pfm) or P. vivax (pv)
+                      # used in the epidemia_report_demo.Rnw file for the formatted report
+                      var_labs = c("pfm","pv"),
+                      #save out the report data in the file that the formatting file reads
+                      save_file = "report/report_data.RData",
+                      #save out a second copy of the report data with year and week numbers in the name file
+                      second_save = TRUE, 
+                      #create the pdf
+                      create_report = TRUE,
+                      #which Rnw file to use to create pdf
+                      formatting_file = "epidemia_report_demo.Rnw",
+                      #show the pdf immediately after creating
+                      show_report = FALSE)
+    
   } #end for loop
 } #end if loop
 
