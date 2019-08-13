@@ -8,8 +8,16 @@ report_period <- 26
 #forecast 8 weeks into the future
 forecast_future <- 8
 
+#report out in incidence
+pfm_value_type <-  "incidence"
+pv_value_type <-  "incidence"
+
 #report incidence rates per 1000 people
 inc_per <- 1000
+
+#Model choice and parameters
+pfm_model_choice <- "poisson-bam"
+pv_model_choice <- "poisson-bam"
 
 #read in model environmental variables to use
 pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", col_types = cols())
@@ -37,6 +45,7 @@ pfm_fc_control <- list(env_vars = pfm_model_env,
                        anom_env = anom_env_var,
                        clusters = pfm_clusters,
                        lag_length = lag_length,
+                       value_type = pfm_value_type,
                        fit_freq = fit_freq,
                        ncores = cores)
 
@@ -44,6 +53,7 @@ pv_fc_control <- list(env_vars = pv_model_env,
                       anom_env = anom_env_var,
                       clusters = pv_clusters,
                       lag_length = lag_length,
+                      value_type = pv_value_type,
                       fit_freq = fit_freq,
                       ncores = cores)
 
