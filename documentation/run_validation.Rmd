@@ -1,0 +1,71 @@
+---
+title: | 
+  | How to Run Model Validation
+  | with the EPIDEMIA system
+subtitle: For epidemia-scripts v2.0 using epidemiar v2.0.0
+author: |
+  | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
+  | Department of Geography and Environmental Sustainability, University of Oklahoma
+  | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
+date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  pdf_document:
+  toc: true
+toc_depth: 2
+number_sections: true
+urlcolor: blue
+
+---
+  
+  ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Model Validation and Assessment
+
+Tools for model validation and assessment have been built into the epidemiar package in the function `run_validation()`. This function allows for on-demand evaluation for any known historical period. 
+
+Evaluations can be done for one thorugh n-week ahead predictions. A skill test comparison can be done, which will also evaluate two naïve models: persistence of last known value, and average cases from that week of the year, for the same evaluation period. 
+
+Note: This is the first beta release of these tools. The statistics are still under development and may change in future releases. Future releases are also planned to include more visualization of results. 
+
+
+## Specific Arguments
+
+The `run_validation()` function takes 4 arguments, plus all the `run_epidemia()` arguments. 
+
+* `week_start`: The week to begin validation, can be built with `epidemiar::make_date_yw()` and isoyear and isoweek numbers (or epiweeks, with appropriate modifications).
+* `total_weeks`: The number of weeks from `week_start` to run the validation.
+* `week_ahead`: To validate 1 through _n_-week ahead predictions. 
+* `skill_test`: TRUE/FALSE on whether to also run the naïve models for comparison: Persistence - last known value carried forward n-appropriate weeks, and Average Week - the average cases from that week of the week (per geographic grouping). 
+
+
+## Other Arguments & Adjustments
+
+The `run_validation()` function will call `run_epidemia()`, so it will also take all the arguments for that function. The user does not need to modify any of these arguments (e.g. event detection settings, `forecast_future`), as `run_validation()` will automatically handle all of thse adjustments. 
+
+
+## Results
+
+Validation statistics included Mean Squared Error (`MSE`), Mean Absolute Error (`MAE`), and proportion of observations that fell inside the prediction intervals (`prop_interval`). 
+
+Results will be returned summarized at the model level and also at the geographic grouping level. 
+
+More advanced visualization of results is planned in future releases. 
+
+
+# Demo script
+
+1. In the `epidemia-demo` folder, click on the `epidemia_demo.Rproj` to open the project in RStudio. 
+
+2. In RStudio, click on the `run_validation_amhara.R` script to open it. 
+
+3. You can change the evaluation start week, total number of weeks and number of weeks ahead parameters in Section 1. 
+
+4. Sections 2 and 3 load the libraries and the data. These are the same as if you were about to run a report. 
+
+5. Section 4 will run the validations. The two species (P. falciparum + mixed, and P. vivax) have been separated into their own function calls. Because this runs the forecasts for *each week* in the evaluation period, this will take a long time to run. 
+
+6. Section 5 has a few calls to look at the overall validation statistics and to save various parts of the results to file. Future versions are planned to have a more robust comparison and visualization component.  
+
