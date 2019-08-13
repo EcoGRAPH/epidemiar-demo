@@ -62,27 +62,31 @@ env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
-# read in latest model to use - select model per species with latest file created time
-# pfm
-all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
-if (nrow(all_pfm_models) > 0){
-  latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
-  pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
-} else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
-#or select specific file
-#latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
-#pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
+# # If you have created cached models to use instead of regenerating a new model each run:
+# # selects the model per species with latest file created time
+# # pfm
+# all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
+# if (nrow(all_pfm_models) > 0){
+#   latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
+#   pfm_model_cached <- readRDS(latest_pfm_model)
+# } else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
+# ##or select specific file
+# #latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
+# #pfm_model_cached <- readRDS(latest_pfm_model)
+#or set as NULL
+latest_pfm_model <- ""; pfm_model_cached <- NULL
 
-#pv
-all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
-if (nrow(all_pv_models) > 0){
-  latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
-  pv_model_obj <- readRDS(latest_pv_model)$model_obj
-} else { latest_pv_model <- ""; pv_model_obj <- NULL}
-#or select specific model
-#latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
-#pv_model_obj <- readRDS(latest_pv_model)$model_obj
-
+# #pv
+# all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
+# if (nrow(all_pv_models) > 0){
+#   latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
+#   pv_model_cached <- readRDS(latest_pv_model)
+# } else { latest_pv_model <- ""; pv_model_obj <- NULL}
+# ##or select specific model
+# #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
+# #pv_model_cached <- readRDS(latest_pv_model)
+#or set as NULL
+latest_pv_model <- ""; pv_model_cached <- NULL
 
 # read in forecast and event detection parameters
 source("data/model_parameters_amhara.R")
@@ -114,7 +118,8 @@ if (exists("epi_data") & exists("env_data")){
                                  fc_control = pfm_fc_control,
                                  env_ref_data = env_ref_data, 
                                  env_info = env_info,
-                                 model_obj = pfm_model_obj)
+                                 model_cached = pfm_model_cached,
+                                 model_choice = pfm_model_choice)
   
   # P. vivax
   message("Running P. vivax")
@@ -135,7 +140,8 @@ if (exists("epi_data") & exists("env_data")){
                                 fc_control = pv_fc_control,
                                 env_ref_data = env_ref_data, 
                                 env_info = env_info,
-                                model_obj = pv_model_obj)
+                                model_cached = pv_model_cached,
+                                model_choice = pv_model_choice)
   
   #append model information to report data metadata
   pfm_reportdata$params_meta$model_used <- latest_pfm_model
