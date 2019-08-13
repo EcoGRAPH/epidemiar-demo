@@ -1,10 +1,9 @@
-# -----------------------------------------------------------------------------
-#
+# ###############################################################################################
 #
 # This script creates only the MODEL that can be used to generate
 # a weekly EPIDEMIA forecast report for synthetic malaria data 
 #
-#
+# ###############################################################################################
 
 # 1. Libraries & Functions ------------------------------------------------------
 
@@ -81,6 +80,7 @@ if (exists("epi_data") & exists("env_data")){
                             fc_control = pfm_fc_control,
                             env_ref_data = env_ref_data, 
                             env_info = env_info,
+                            model_choice = pfm_model_choice,
                             model_run = TRUE)
   
   # P. vivax
@@ -102,6 +102,7 @@ if (exists("epi_data") & exists("env_data")){
                            fc_control = pv_fc_control,
                            env_ref_data = env_ref_data, 
                            env_info = env_info,
+                           model_choice = pfm_model_choice,
                            model_run = TRUE)
   
 } else {
