@@ -3,16 +3,18 @@
 \begin{minipage}[t]{0.2\textwidth}
 \vspace{0pt}
 <<echo=FALSE, fig.width=1, fig.height=1>>=
-par(mar=c(0,0,0,0)) 
-  plot(am_simpl, border = "gray60")
-  plot(am_simpl[am_simpl$wid == wid, ], col="darkred", add=T)
+
+#upper left mini-map of woreda in Amhara
+base_amhara_plot + 
+  geom_sf(data = st_geometry(am_sf_simpl %>% filter(WID == this_WID)), fill = "darkred")
+
 @
 \end{minipage}
 \hspace{0.00\textwidth}
 %second column
 \begin{minipage}[t]{0.75\textwidth}
 \vspace{8pt}
-\subsection{\Sexpr{paste(zone, ": ", woreda, sep = "")}}
+\subsection{\Sexpr{paste(this_zone, ": ", this_woreda, sep = "")}}
 %\vspace{4pt}
 
 %\Sexpr{zone} Zone
@@ -24,59 +26,8 @@ par(mar=c(0,0,0,0))
 
 <<message=FALSE, warning=FALSE, fig.width=7, fig.height=9.1, out.width='.96\\linewidth'>>=
 
-
-#graphing params  
-my_legend <- theme(legend.title=element_blank(),
-                   legend.key.width = unit(1.5, "lines"),
-                   legend.key = element_blank(),
-                   legend.justification = c(0, 0), 
-                   legend.position = c(-.03, 1),
-                   legend.direction = "horizontal",
-                   legend.background = element_blank())
-  
-my_panel_theme <- theme(panel.border = element_blank(),
-                        panel.background = element_blank(),
-                        panel.grid.major.y = element_line("gray80", 0.4),
-                        panel.grid.major.x = element_blank(),
-                        plot.margin = unit(c(2, 1, .5, .5), "lines"))  
-  
-my_x_axis <- theme(axis.title.x = element_blank(),
-                   axis.text.x = element_text(size = rel(0.73)),
-                   axis.ticks.length =  unit(0.1, "lines"))
-
-#no_legend <- theme(legend.position = "none")
-#inner_legend <- theme(legend.justification=c(1,1), legend.position=c(1,1.03))
-  
-axis_dates <- params_meta$report_dates$full$seq
-axis_weeks <- modeling_results_data %>% 
-  select(obs_date, week_epidemiar) %>% 
-  arrange(obs_date) %>% 
-  unique() %>% 
-  pull(week_epidemiar)
-
 ## Control Chart
-control_chart <- modeling_results_data %>%
-  #recoding Early Detection Alert for graphing (NA to not show up for when not alert, and 0.01 to graph at bottom of chart)
-  mutate(value = case_when(series == "ed" & value == 0 ~ NA_real_,
-                           series == "ed" & value == 1 ~ 0.01,
-                           TRUE ~ value),
-         value = case_when(series == "ew" & value == 0 ~ NA_real_,
-                           series == "ew" & value == 1 ~ 0.01,
-                           TRUE ~ value)) %>% 
-  filter(woreda_name == woreda) %>%
-  inner_join(tibble(respon_var = c("pfm", "pv"),
-                    facet = c("italic(P.~falciparum)~and~mixed", "italic(P.~vivax)")),
-             by = "respon_var") %>% 
-  #extra spacing added as a hack to increase distance between items in legend
-  #known issue in ggplot that margin doesn't do what it should
-  #https://github.com/tidyverse/ggplot2/issues/1502
-  mutate(lab = factor(lab,
-                      levels = c("Early Detection Alert", "Early Warning Alert", "Alert Threshold", 
-                                                 "Forecast Trend", "Observed"),
-                      labels = c("Early Detection Alert ", "Early Warning Alert ", "Alert Threshold ", 
-                                                 "Forecast Trend ", "Observed "),
-                      #put in correct order
-                      ordered = TRUE)) %>% 
+control_chart <- this_modeling_data %>%
   #and plot
   ggplot(aes(x = obs_date, y = value, color = lab)) +
   facet_wrap(~ facet, scales = "free_y", ncol = 1, 
@@ -108,7 +59,7 @@ control_chart <- modeling_results_data %>%
   geom_line(aes(linetype = lab, size = lab)) +
   #    geom_ribbon(aes(ymin = lower, ymax = upper, fill = lab, alpha = lab), color = NA) +
   geom_point(aes(shape = lab, size = lab)) +
-  scale_x_date(breaks = axis_dates, labels = axis_weeks, minor_breaks = NULL) +
+  scale_x_date(breaks = woreda_axis_dates, labels = woreda_axis_weeks, minor_breaks = NULL) +
   #attempt to pad top of chart to avoid crowding
   scale_y_continuous(expand = c(0.2, 0), limits = c(0, NA)) +
   labs(y = "Incidence (per 1000)") +
@@ -118,41 +69,15 @@ control_chart <- modeling_results_data %>%
   scale_shape_manual(values = c(17, 2, NA, 124, NA)) +
   scale_size_manual(values = c(2.5, 2.5, 0.5, 4, 0.5)) +
   scale_alpha_manual(values = c(0, 0, 0, 0.5, 0)) +
+  # plot themes
   theme_gray(base_size = 11, base_family = "") +
-  my_legend + 
-  my_x_axis +
-  my_panel_theme
-
-
-
-##Set up for environmental timeseries
-# labels
-env_labels_tbl <- select(params_meta$env_info, environ_var_code, report_label)
-environ_labels <- setNames(env_labels_tbl$report_label, env_labels_tbl$environ_var_code)
-#to create a disconnect series in observed (where there are interpolated values), there must be NA values
-intp_obs <- environ_timeseries %>% 
-  filter(data_source == "Interpolated") %>% 
-  mutate(val_epidemiar = NA,
-         data_source = "Observed")
-#bind back in
-environ_timeseries <- environ_timeseries %>% 
-  bind_rows(intp_obs) %>% 
-  arrange(environ_var_code, obs_date)
+  woreda_legend + 
+  woreda_x_axis +
+  woreda_panel_theme
 
 
 ## Env timeseries graphs
-env_ts <- environ_timeseries %>%
-  #grab appropriate woreda 
-  filter(woreda_name == woreda) %>%
-  #desired order for variables
-  mutate(environ_var_code = factor(environ_var_code, c("totprec", "lst_day", "ndwi6"), ordered = TRUE)) %>% 
-  arrange(environ_var_code) %>% 
-  #desired order for data source, and kludge fixing the ggplot horizontal spacing in legend issue
-  mutate(data_source = factor(data_source, 
-                              levels = c("Observed", "Interpolated", "Extended"), 
-                              labels = c("Observed    ", "Interpolated    ", "Extended    "),
-                              ordered = TRUE)) %>% 
-  arrange(data_source) %>% 
+env_ts <- this_environ_timeseries %>%
   #plot
   ggplot(aes(obs_date, val_epidemiar)) +
   #same vertical as in incidence graph, delineating known vs forecast values
@@ -165,7 +90,7 @@ env_ts <- environ_timeseries %>%
   #faceting for different environment variables
   facet_wrap(~ environ_var_code, ncol = 1, scales = "free_y", 
              strip.position = "right", labeller = as_labeller(environ_labels)) +
-  scale_x_date(breaks = params_meta$report_dates$full$seq, labels = axis_weeks, minor_breaks = NULL) +
+  scale_x_date(breaks = params_meta$report_dates$full$seq, labels = woreda_axis_weeks, minor_breaks = NULL) +
   #colors of environmental variables
   scale_color_manual(values = c("navyblue", "red3", "cyan4"), guide = FALSE) + 
   #shape, lines of data source series per env var 
@@ -180,9 +105,9 @@ env_ts <- environ_timeseries %>%
   theme_gray(base_size = 11, base_family = "") +
   #reduce caption size
   theme(plot.caption = element_text(size=8)) +
-  my_x_axis +
-  my_panel_theme +
-  my_legend +
+  woreda_legend + 
+  woreda_x_axis +
+  woreda_panel_theme +
   #make the data_source and historical legend items on one line
   theme(legend.box = "horizontal") +
   #reorder legend so that data_source (shape+linetype) comes before historical (fill/ribbon)

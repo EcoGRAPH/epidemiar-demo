@@ -6,24 +6,44 @@ opts_chunk$set(echo = FALSE, dev = "png", dpi=150, concordance=TRUE)
 @
 
 <<report_data_functions, message=FALSE, warning=FALSE, echo=FALSE, include=FALSE>>=
-if (!require("pacman")) install.packages("pacman"); library(pacman)
-pacman::p_load(knitr, readxl, magrittr, dplyr, tidyr, lubridate,  
+if (!require("pacman")) install.packages("pacman")
+library(pacman)
+pacman::p_load(knitr, tinytex,  
+               readxl, magrittr, dplyr, tidyr, lubridate,  
                stringr, forcats, broom, xtable, scales, grid, gridExtra, 
-               ggplot2, sp, rgdal, rgeos, ggrepel, ggpolypath,
-               epidemiar) 
+               ggplot2, 
+               #sp, rgdal, rgeos, 
+               ggrepel, 
+               #ggpolypath,
+               sf,
+               purrr) 
+library(epidemiar)
 
+#load report data
 load("report_data.RData")
 
 #loading of local ggplot2 themes
-source("../R/ggplot_themes.R")
 source("../R/arrange_and_draw.R")
 
-#loading of local spatial data 
-load("../data/am_simpl.rda")
-load("../data/am.rda")
+#load st objects of Amhara spatial data
+load("../data/am_sf.RData")
+load("../data/am_sf_simpl.RData")
+
+#zone level for overlay
+# Note: do NOT do this on simplified set, will introduce a lot of artifacts
+zones_am <- am_sf %>% 
+  group_by(zone) %>% 
+  summarize(geometry = sf::st_union(geometry)) %>% 
+  ungroup
+
 
 #read woreda information (metadata) file
-woredas <- read_xlsx("../data/woredas.xlsx")
+woredas <- read_xlsx("../data/woredas.xlsx", na = "NA") %>% 
+  #NOTE: "WID" correctly matched shapefile wid (after class conversion if necessary)
+  # However WID is not unique. Unwanted entries (hospitals in that woreda, etc)
+  # can be removed by removing entries with id of NA. 
+  #Note id is very similar to WID, but NOT the same: see Shewa Robit, Kewet, Kobo Town, Raya Kobo
+  filter(!is.na(id)) 
 
 #woredas used in report data
 report_woreda_names <- params_meta$groupings
@@ -34,73 +54,29 @@ report_woredas <- tibble(report_woreda_names) %>%
             by = c("report_woreda_names" = "woreda_name")) %>% 
   rename(woreda_name = report_woreda_names)
 
-
-#plotting helpers
-plot_amhara <- function(x, fill_column, alpha_column, line_color = "gray80", line_size = 0.05){
-  #rewrite (simplified) of epidemiatools::plot_am() to use ggpolypath::geom_polypath() 
-  
-  # check to make sure woreda_name column is present
-  if(!"woreda_name" %in% colnames(x)) {
-    stop("The column 'woreda_name' is missing.")}
-
-  # check to make sure fill_column column is present
-  if(!fill_column %in% colnames(x)) {
-    stop("The fill column you supplied ('", fill_column, "'), is missing.")}
-
-  # check if fill_column == "id", in which case rename it
-  if(fill_column == "id") {
-    x <- rename(x, id_orig = id)
-    fill_column <- "id_orig"
-  }
-
-  # remove the id column if there already is one
-  if("id" %in% colnames(x)) {x <- select(x, -id)}
-
-  # add the id column from woredas; for joining with the shapefile
-  x <- x %>%
-    # grouped x will cause error
-    ungroup() %>%                                 
-    left_join(
-      woredas %>%
-        select(woreda_name, id),
-      by = "woreda_name")
-  
-  #base plot
-  p <- suppressWarnings(suppressMessages(broom::tidy(am_simpl))) %>% 
-    left_join(x, by = "id") %>%
-    ggplot(aes(long, lat, group = group))
-  
-  #add fill using geom_polypath from ggpolypath package so that polygon holes work properly (ggplot2 ignores them)
-  p <- p + if (missing(alpha_column)) {
-    geom_polypath(aes_string(fill = fill_column),
-                  color = line_color,
-                  size = line_size)
-    #with alpha, if supplied
-  } else { geom_polypath(aes_string(fill = fill_column,
-                                    alpha = alpha_column),
-                         color = line_color,
-                         size = line_size)
-  }
-  
-  #plot adjustments
-  p <- p +
-    coord_equal() +
-    scale_x_continuous(expand = c(0,0)) +
-    scale_y_continuous(expand = c(0,0)) +
-    theme_map + 
-    theme_no_margin 
-  
-  p
-}
-
-#zone level for overlay
-zones_sp <- gUnaryUnion(am, id = am@data$zone) 
-#suppressing warnings
-zones_df <- suppressWarnings(broom::tidy(zones_sp))
-
+#Base plotting
+#often used themes (originally from ggplot_themes)
+theme_map <- theme(axis.title = element_blank(),
+                   axis.text = element_blank(),
+                   axis.ticks = element_blank(),
+                   axis.line = element_blank(),
+                   panel.background = element_blank(),
+                   panel.grid = element_blank(),
+                   axis.ticks.length = unit(0, "null"))
+theme_no_margin <- theme(plot.margin = unit(c(0, 0, 0, 0), "mm"))
 #used in alert summary maps
 theme_model_result_map <- theme(legend.key.height = unit(3.0, "lines"))
 
+#Create base plot 
+# other plots will drawn on top - but base will only have to be created once
+base_amhara_plot <- ggplot() +
+  #Amhara region
+  geom_sf(data = am_sf_simpl, fill = NA, color = "gray80", size = 0.05) +
+  #plot adjustments
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_map + 
+  theme_no_margin 
 
 @
 
@@ -141,8 +117,6 @@ num_grps <- length(params_meta$groupings)
 \setlength{\droptitle}{-15ex} % shift title up
 \setlength{\headheight}{24pt} %added b/c of warnings too small
 
-% \usepackage[title]{appendix}
-
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \rhead{\Sexpr{report_rhead}}
@@ -162,7 +136,6 @@ num_grps <- length(params_meta$groupings)
 
 <<summary_map_falciparum, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=6.5, fig.pos='H', out.width='.96\\linewidth'>>=
 
-
 #ED/EW summary labels for legend
 ed_overview_labels <- c("Low: No alert", 
                         "Moderate: Alert for any 1 week\n  in early detection summary period", 
@@ -170,6 +143,8 @@ ed_overview_labels <- c("Low: No alert",
 ew_overview_labels <- c("Low: No alerts",
                         "Moderate: Alert for any 1 week\n  in forecast period",
                         "High: Alerts for 2 or more weeks\n  in forecast period")
+
+overview_colors <- c("#d7301f", "#fc8d59", "#b8d6fd", "gray98")
 
 summary_map_data <- summary_data %>% 
   #get falciparum data
@@ -184,30 +159,35 @@ summary_map_data <- summary_data %>%
          ew_legend = factor(ew_legend, levels = rev(levels(ew_legend)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
   mutate_at(c("ed_legend", "ew_legend"), fct_explicit_na, na_level = "No Data")
 
 
-overview_colors <- c("#d7301f", "#fc8d59", "#b8d6fd", "gray98")
-
-list(plot_amhara(summary_map_data, "ed_legend") +
-       scale_fill_manual(name = "Early Detection Alerts",
-                         values = overview_colors, drop = FALSE) +
-       theme_model_result_map + 
-       #darken woreda boundaries
-       geom_path(color = "gray70", size = 0.05) +
-       #add zone overlay
-       geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40"),
-     ##early warning map
-     plot_amhara(summary_map_data, "ew_legend") +
-       scale_fill_manual(name = "Early Warning Alerts",
-                         values = overview_colors, drop = FALSE) +
-       theme_model_result_map +
-       #darken woreda boundaries
-       geom_path(color = "gray70", size = 0.05) +
-       #zone overlay
-       geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40")) %>% 
+list(#Early Detection
+  base_amhara_plot +
+    geom_sf(data = am_sf_simpl %>%
+              left_join(summary_map_data, by = "WID"),
+            aes(fill = ed_legend),
+            #woreda boundaries
+            color = "gray70", size = 0.05) +
+    scale_fill_manual(name = "Early Detection Alerts",
+                      values = overview_colors, drop = FALSE) +
+    theme_model_result_map +
+    #zone overlay
+    geom_sf(data = zones_am, fill = NA, color = "gray40"),
+  #Early Warning
+  base_amhara_plot +
+    geom_sf(data = am_sf_simpl %>%
+              left_join(summary_map_data, by = "WID"),
+            aes(fill = ew_legend),
+            #woreda boundaries
+            color = "gray70", size = 0.05) +
+    scale_fill_manual(name = "Early Warning Alerts",
+                      values = overview_colors, drop = FALSE) +
+    theme_model_result_map +
+    #zone overlay
+    geom_sf(data = zones_am, fill = NA, color = "gray40")) %>%
   arrange_and_draw(ncol = 1)
 
 @
@@ -279,30 +259,36 @@ summary_map_data <- summary_data %>%
          ew_legend = factor(ew_legend, levels = rev(levels(ew_legend)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
   mutate_at(c("ed_legend", "ew_legend"), fct_explicit_na, na_level = "No Data")
 
-
-#overview_colors <- c("#d7301f", "#fc8d59", "#b8d6fd", "gray98") #no need to redefine
-
-list(plot_amhara(summary_map_data, "ed_legend") +
-       scale_fill_manual(name = "Early Detection Alerts",
-                         values = overview_colors, drop = FALSE) +
-       theme_model_result_map + 
-       #darken woreda boundaries
-       geom_path(color = "gray70") +
-       #add zone overlay
-       geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40"),
-     ##early warning map
-     plot_amhara(summary_map_data, "ew_legend") +
-       scale_fill_manual(name = "Early Warning Alerts",
-                         values = overview_colors, drop = FALSE) +
-       theme_model_result_map +
-       #darken woreda boundaries
-       geom_path(color = "gray70") +
-       #zone overlay
-       geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40")) %>% 
+list(#Early Detection
+  base_amhara_plot +
+    geom_sf(data = am_sf_simpl %>% 
+              left_join(summary_map_data, by = "WID"),
+            aes(fill = ed_legend),
+            #woreda boundaries
+            color = "gray70", size = 0.05) +
+    scale_fill_manual(name = "Early Detection Alerts",
+                      values = overview_colors, drop = FALSE) +
+    theme_model_result_map +
+    #zone overlay
+    geom_sf(data = zones_am, fill = NA, color = "gray40"),
+  
+  #Early Warning
+  base_amhara_plot +
+    geom_sf(data = am_sf_simpl %>% 
+              left_join(summary_map_data, by = "WID"),
+            aes(fill = ew_legend),
+            #woreda boundaries
+            color = "gray70", size = 0.05) +
+    scale_fill_manual(name = "Early Warning Alerts",
+                      values = overview_colors, drop = FALSE) +
+    theme_model_result_map +
+    #zone overlay
+    geom_sf(data = zones_am, fill = NA, color = "gray40")) %>%
+  #1 column
   arrange_and_draw(ncol = 1)
 
 @
@@ -363,66 +349,167 @@ print(sum_tbl, floating = FALSE, comment = FALSE)
 
 <<group_map, message=FALSE, warning=FALSE, fig.width = 6.10236, fig.height=7.5, fig.pos='H', out.width='.96\\linewidth'>>=
 
-#for labeling of woredas
-centroids_df <- 
-  as.data.frame(coordinates(am)) %>% 
-  set_names(c("x", "y")) %>%
-  tibble::rownames_to_column("id") %>%
-  right_join(report_woredas %>%
-               transmute(woreda_name, 
-                         id = as.character(WID)),
-             by = "id") %>%
-  mutate(label = str_replace_all(woreda_name, " ", "\n"))
+#calculate better centroids | point on surface 
+#https://stackoverflow.com/questions/52522872/r-sf-package-centroid-within-polygon
+st_centroid_within_poly <- function(poly){
+  
+  # check if centroid is in polygon
+  ctrd <- st_centroid(poly, of_largest_polygon = TRUE)
+  in_poly <- diag(st_within(ctrd, poly, sparse = F))
+  
+  if (in_poly){
+    return(ctrd)
+  }
+  
+  ## For points that were not within polygon get st_point_on_surface()
+  ctrd_inpoly <- st_point_on_surface(poly)
+}
 
-#just using summary data for groupings
-summary_data %>% 
-  mutate(fill_name = ifelse(woreda_name %in% report_woreda_names,
-                            woreda_name, NA) %>% 
-           factor()) %>% 
-  plot_amhara("fill_name") +
+
+am_sf_ref <- am_sf_simpl %>%
+  #only label report woredas
+  mutate(fill_name = ifelse(as.character(woreda) %in% report_woreda_names,
+                            as.character(woreda), NA)) %>% 
+  #get the best points for labeling
+  mutate(lon = purrr::map_dbl(geometry, ~st_centroid_within_poly(.x) %>% 
+                                st_coordinates() %>% 
+                                .[ , "X"]),
+         lat = purrr::map_dbl(geometry, ~st_centroid_within_poly(.x) %>% 
+                                st_coordinates() %>% 
+                                .[ , "Y"]))
+
+
+base_amhara_plot +
+  #just report woredas with fill_name
+  geom_sf(data = am_sf_ref,
+          aes(fill = fill_name),
+          #woreda boundaries
+          color = "gray50") +
+  #remove legend
   guides(fill = "none") +
-  ggrepel::geom_text_repel(
-    aes(label = label, x = x, y = y, group = NULL),
-    data = centroids_df, 
-    # reduce lineheight a little
-    size = 2.9, lineheight = 1,  
-    # keep text closer to centroids
-    point.padding = NA) +        
-  labs(x = NULL, y = NULL, 
-       title = "Woredas in the EPIDEMIA project",
-       subtitle = "Amhara Region, Ethiopia") + 
-  theme_gray(base_size = 11) +
-  theme_map + #epidemiaweb
-  theme_no_margin +
   #color in woredas something with various colors, but not very bright
-  scale_fill_manual(values = rainbow(length(unique(summary_data$woreda_name)), s = 0.4, v = 0.9),
+  scale_fill_manual(values = rainbow(length(report_woreda_names), s = 0.4, v = 0.9),
                     na.value = "gray85") +
-  #darken woreda boundaries
-  geom_path(color = "gray50") +
-  #add some extra space below titles
-  theme(plot.subtitle = element_text(margin = margin(b = 20, unit = "pt"))) +
-  #make sure no legend appears
-  theme(legend.position = "none") +
   #zone overlay
-  geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray10")
+  geom_sf(data = zones_am, fill = NA, color = "gray10") +
+  #add text of woreda names
+  #repel text
+  ggrepel::geom_text_repel(data = am_sf_ref,
+                           aes(x = lon, 
+                               y = lat,
+                               label = fill_name),
+                           # reduce text size
+                           size = 2.9, 
+                           # keep text closer to centroids
+                           box.padding = 0.01,
+                           point.padding = 0,
+                           #no labeling of non-report woredas
+                           na.rm = TRUE) +
+  #titles
+  labs(title = "Woredas in the EPIDEMIA project",
+       subtitle = "Amhara Region, Ethiopia") + 
+  #theme adjustments
+  #add some extra space below titles
+  theme(plot.subtitle = element_text(margin = margin(b = 20, unit = "pt")))
 
 @
 
 \newpage
 \section{Woreda Reports} \label{woredas}
 <<run_all_groups, include=FALSE>>=
-wd <- "report"
-out = NULL
+## Setup outside of loop - pull out as much as possible to reduce repeating the same calculations (save time)
+#modeling data
+modeling_results_data <- modeling_results_data %>%
+  #recoding Early Detection Alert for graphing (NA to not show up for when not alert, and 0.01 to graph at bottom of chart)
+  mutate(value = case_when(series == "ed" & value == 0 ~ NA_real_,
+                           series == "ed" & value == 1 ~ 0.01,
+                           TRUE ~ value),
+         value = case_when(series == "ew" & value == 0 ~ NA_real_,
+                           series == "ew" & value == 1 ~ 0.01,
+                           TRUE ~ value)) %>% 
+  inner_join(tibble(respon_var = c("pfm", "pv"),
+                    facet = c("italic(P.~falciparum)~and~mixed", "italic(P.~vivax)")),
+             by = "respon_var") %>% 
+  #extra spacing added as a hack to increase distance between items in legend
+  #known issue in ggplot that margin doesn't do what it should
+  #https://github.com/tidyverse/ggplot2/issues/1502
+  mutate(lab = factor(lab,
+                      levels = c("Early Detection Alert", "Early Warning Alert", "Alert Threshold", 
+                                 "Forecast Trend", "Observed"),
+                      labels = c("Early Detection Alert ", "Early Warning Alert ", "Alert Threshold ", 
+                                 "Forecast Trend ", "Observed "),
+                      #put in correct order
+                      ordered = TRUE)) 
+
+#common graphing parameters set outside of loop
+woreda_legend <- theme(legend.title=element_blank(),
+                       legend.key.width = unit(1.5, "lines"),
+                       legend.key = element_blank(),
+                       legend.justification = c(0, 0), 
+                       legend.position = c(-.03, 1),
+                       legend.direction = "horizontal",
+                       legend.background = element_blank())
+
+woreda_panel_theme <- theme(panel.border = element_blank(),
+                            panel.background = element_blank(),
+                            panel.grid.major.y = element_line("gray80", 0.4),
+                            panel.grid.major.x = element_blank(),
+                            plot.margin = unit(c(2, 1, .5, .5), "lines"))  
+
+woreda_x_axis <- theme(axis.title.x = element_blank(),
+                       axis.text.x = element_text(size = rel(0.73)),
+                       axis.ticks.length =  unit(0.1, "lines"))
+#all have same date range
+woreda_axis_dates <- params_meta$report_dates$full$seq
+woreda_axis_weeks <- modeling_results_data %>% 
+  select(obs_date, week_epidemiar) %>% 
+  arrange(obs_date) %>% 
+  unique() %>% 
+  pull(week_epidemiar)
+
+#set up for environmental timeseries
+#to create a disconnected series in observed (where there are interpolated values), there must be NA values
+intp_obs <- environ_timeseries %>% 
+  filter(data_source == "Interpolated") %>% 
+  mutate(val_epidemiar = NA,
+         data_source = "Observed")
+#bind back in
+environ_timeseries <- environ_timeseries %>% 
+  bind_rows(intp_obs) 
+#env ts data set up
+environ_timeseries <- environ_timeseries %>%
+  #desired order for variables
+  mutate(environ_var_code = factor(environ_var_code, c("totprec", "lst_day", "ndwi6"), ordered = TRUE)) %>% 
+  #desired order for data source, and kludge fixing the ggplot horizontal spacing in legend issue
+  mutate(data_source = factor(data_source, 
+                              levels = c("Observed", "Interpolated", "Extended"), 
+                              labels = c("Observed    ", "Interpolated    ", "Extended    "),
+                              ordered = TRUE)) %>% 
+  #one arrange for all
+  arrange(environ_var_code, data_source, obs_date)
+# labels
+env_labels_tbl <- select(params_meta$env_info, environ_var_code, report_label)
+environ_labels <- setNames(env_labels_tbl$report_label, env_labels_tbl$environ_var_code)
+
+
 
 #order by zones
 report_woredas <- report_woredas %>% 
   arrange(zone_name, woreda_name)
 
+out = vector('list', nrow(report_woredas))
+
 for (i in 1:nrow(report_woredas)) {
-  woreda <- report_woredas$woreda_name[i]
-  zone <- report_woredas$zone_name[i]
-  wid = report_woredas$WID[i]
-  out <- c(out, knit_child('epidemia_report_demo_child.Rnw'))
+  this_woreda <- report_woredas$woreda_name[i]
+  this_zone <- report_woredas$zone_name[i]
+  this_WID = report_woredas$WID[i]
+  #filter data to woreda
+  this_modeling_data <- modeling_results_data %>%
+    filter(woreda_name == this_woreda)
+  this_environ_timeseries <- environ_timeseries %>% 
+    filter(woreda_name == this_woreda)
+  
+  out[[i]] <- knit_child('epidemia_report_demo_child.Rnw')
 }
 @
 
@@ -437,33 +524,36 @@ for (i in 1:nrow(report_woredas)) {
 
 total <- epi_summary %>%
   group_by(woreda_name) %>% 
-  #'cheating' way to get total incidence since ran species separately (but over same time period and population per woreda, so okay to add together)
+  #shortcut way to get total incidence since ran species separately (but over same time period and population per woreda, so okay to add together)
   summarize(tot_inc = sum(mean_inc, na.rm = TRUE)) %>% 
   mutate(plot_inc = cut(tot_inc, c(0, 0.5, 1, Inf), ordered_result = TRUE),
          plot_inc = factor(plot_inc, levels = rev(levels(plot_inc)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
   mutate(plot_inc = fct_explicit_na(plot_inc, na_level = "No Data"))
 
-total %>%   
-  plot_amhara("plot_inc") +
+
+base_amhara_plot +
+  geom_sf(data = am_sf_simpl %>% 
+            left_join(total, by = "WID"),
+          aes(fill = plot_inc),
+          #woreda boundaries
+          color = "gray70", size = 0.05) +
   scale_fill_manual(name = "Incidence\nper 1000\n",
                     values = c("#08519c", "#3182bd", "#bdd7e7", "grey98"),
                     drop = FALSE) +
-  #darken woreda boundaries
-  geom_path(color = "gray70") +
-  #add zone overlay
-  geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40") +
+  #zone overlay
+  geom_sf(data = zones_am, fill = NA, color = "gray40") +
   #labeling
   labs(title = "\nTotal Malaria Incidence",
        subtitle = "Mean of the Early Detection Period",
        caption = paste0("Total malaria consists of P. falciparum, P. vivax, and mixed infections.",
                         "\nSummarized from ", ed_start, " through ", ed_end)) +
-  theme(strip.background = element_blank()) +
   #add some extra space below titles
   theme(plot.subtitle = element_text(margin = margin(b = 15, unit = "pt")))
+
 
 @
 
@@ -478,7 +568,7 @@ species <- epi_summary %>%
 
 #grab all non-pilot woredas (need a copy for both species)
 notpilot <- woredas %>% 
-  select(woreda_name, WID) %>% 
+  select(woreda_name) %>% 
   anti_join(species, by = "woreda_name")
 
 #create full set with species and no data woredas
@@ -488,11 +578,17 @@ species_full <- species %>%
   bind_rows(notpilot %>% 
               mutate(respon_var = "pv")) %>% 
   #get "No Data" instead of NA for non included woredas
-  mutate(plot_inc = fct_explicit_na(plot_inc, na_level = "No Data"))
+  mutate(plot_inc = fct_explicit_na(plot_inc, na_level = "No Data")) %>% 
+  #get woreda WID for joining
+  left_join(woredas %>% select(woreda_name, WID),
+            by = "woreda_name")
 
-
-species_full %>% 
-  plot_amhara("plot_inc") +
+base_amhara_plot +
+  geom_sf(data = am_sf_simpl %>% 
+            left_join(species_full, by = "WID"),
+          aes(fill = plot_inc),
+          #woreda boundaries
+          color = "gray70", size = 0.05) +
   facet_wrap(~ respon_var, ncol = 1, 
              labeller = as_labeller(
                c(pfm = "paste(italic(`P. falciparum`), ' and mixed infections')", 
@@ -501,10 +597,8 @@ species_full %>%
   scale_fill_manual(name = "Incidence\nper 1000\n",
                     values = c("#08519c", "#3182bd", "#bdd7e7", "grey98"),
                     drop = FALSE) +
-  #darken woreda boundaries
-  geom_path(color = "gray70") +
-  #add zone overlay
-  geom_path(data = zones_df, aes(x = long, y = lat, group = group), color = "gray40") +
+  #zone overlay
+  geom_sf(data = zones_am, fill = NA, color = "gray40") +
   #labeling
   labs(title = "Malaria Incidence by Species",
        subtitle = "Mean of the Early Detection Period",
@@ -521,7 +615,7 @@ species_full %>%
 #captions for all Env Anomalies
 anomalies_caption <- "Anomaly values are calculated as the mean of the observed values\nduring the Early Detection Period minus 15-year means."
 
-environ_anomalies %>% 
+rain_anom <- environ_anomalies %>% 
   #filter for rainfall
   filter(environ_var_code == "totprec") %>% 
   #use hard coded cut points
@@ -530,31 +624,34 @@ environ_anomalies %>%
          legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
-  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data")) %>% 
-  #mapping function
-  plot_amhara("legend_cut") +
-  #map stuff
-    scale_fill_manual(
+  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data"))
+
+
+base_amhara_plot +
+  geom_sf(data = am_sf_simpl %>% 
+            left_join(rain_anom, by = "WID"),
+          aes(fill = legend_cut),
+          #woreda boundaries
+          color = "gray70", size = 0.05) +
+  #map labels and colors
+  scale_fill_manual(
     name = "Rainfall\nAnomalies\n(mm)\n",
     #grayscale distinguishable divergent color scheme:
     values = c("royalblue4", "royalblue3", "goldenrod1", "sandybrown", "peru", "grey98"),
     drop = FALSE) +
   labs(title = "Rainfall Anomalies",
        subtitle = "",
-       caption = anomalies_caption) +
-  #darken woreda boundaries
-  geom_path(color = "gray50")
-
+       caption = anomalies_caption)
 
 @
 
 \newpage
 <<lstd_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=7, fig.pos='H', out.width='.96\\linewidth'>>=
 
-environ_anomalies %>% 
-  #filter for rainfall
+lst_anom <- environ_anomalies %>% 
+  #filter for lst day
   filter(environ_var_code == "lst_day") %>% 
   #use hard coded cut points
   mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 1.2, 0.4, -0.4, -1.2, -Inf), ordered_result = TRUE),
@@ -562,21 +659,24 @@ environ_anomalies %>%
          legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
-  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data")) %>% 
-  #mapping function
-  plot_amhara("legend_cut") +
-  #map stuff
+  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data")) 
+
+base_amhara_plot +
+  geom_sf(data = am_sf_simpl %>% 
+            left_join(lst_anom, by = "WID"),
+          aes(fill = legend_cut),
+          #woreda boundaries
+          color = "gray70", size = 0.05) +
+  #map labels and colors
   scale_fill_manual(name = "Temp.\n(°C)\n",
-    #grayscale distinguishable divergent color scheme:
-    values = c("darkred", "orangered3", "khaki", "#77BEEF", "#8092cd", "grey98"),  
-    drop = FALSE) +
- labs(title = "Daytime Land Surface Temperature (LST) Anomalies",
-      subtitle = "",
-      caption = anomalies_caption) +
-  #darken woreda boundaries
-  geom_path(color = "gray50")
+                    #grayscale distinguishable divergent color scheme:
+                    values = c("darkred", "orangered3", "khaki", "#77BEEF", "#8092cd", "grey98"),  
+                    drop = FALSE) +
+  labs(title = "Daytime Land Surface Temperature (LST) Anomalies",
+       subtitle = "",
+       caption = anomalies_caption)
 
 @
 
@@ -584,8 +684,8 @@ environ_anomalies %>%
 \newpage
 <<ndwi6_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=7, fig.pos='H', out.width='.96\\linewidth'>>=
 
-environ_anomalies %>% 
-  #filter for rainfall
+ndwi6_anom <- environ_anomalies %>% 
+  #filter for ndwi6
   filter(environ_var_code == "ndwi6") %>% 
   #use hard coded cut points
   mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 0.008, 0.002, -0.002, -0.008, -Inf), ordered_result = TRUE),
@@ -593,21 +693,24 @@ environ_anomalies %>%
          legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
-            by = "woreda_name") %>%
+             by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
-  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data")) %>% 
-  #mapping function
-  plot_amhara("legend_cut") +
-  #map stuff
+  mutate(legend_cut = fct_explicit_na(legend_cut, na_level = "No Data"))
+
+base_amhara_plot +
+  geom_sf(data = am_sf_simpl %>% 
+            left_join(ndwi6_anom, by = "WID"),
+          aes(fill = legend_cut),
+          #woreda boundaries
+          color = "gray70", size = 0.05) +
+  #map labels and colors
   scale_fill_manual(name = "NDWI6\nAnomaly\n",
-    #grayscale distinguishable divergent color scheme:
-    values = c("darkgreen", "chartreuse4", "khaki", "#f4b060", "#d88c0f", "grey98"),
-    drop = FALSE) +
- labs(title = "Normalized Difference Water Index Anomalies",
-      subtitle = "NDWI is an index for vegetation water content",
-      caption = anomalies_caption) +
-  #darken woreda boundaries
-  geom_path(color = "gray50")
+                    #grayscale distinguishable divergent color scheme:
+                    values = c("darkgreen", "chartreuse4", "khaki", "#f4b060", "#d88c0f", "grey98"),
+                    drop = FALSE) +
+  labs(title = "Normalized Difference Water Index Anomalies",
+       subtitle = "NDWI is an index for vegetation water content",
+       caption = anomalies_caption)
 
 @
 
