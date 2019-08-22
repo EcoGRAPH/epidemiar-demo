@@ -1,16 +1,15 @@
-var trmm_3b42 = ee.ImageCollection("TRMM/3B42"),
-    gpm = ee.ImageCollection("NASA/GPM_L3/IMERG_V05"),
+var gpm = ee.ImageCollection("NASA/GPM_L3/IMERG_V06"),
     woreda = ee.FeatureCollection("users/mcwimberly/amhara_woredas_geo"),
     brdf_reflect = ee.ImageCollection("MODIS/006/MCD43A4"),
     lst_terra8 = ee.ImageCollection("MODIS/006/MOD11A2"),
     brdf_qa = ee.ImageCollection("MODIS/006/MCD43A2");
 
 ////////////////////////////////////////////////////////////////////////////////
-// EPIDEMIA Data Downloader (Version 2.1)
-// Coded by Dr. Mike Wimberly
+// EPIDEMIA Data Downloader (Version 2.3)
+// Coded by Dr. Mike Wimberly, Dr. Dawn Nekorchuk
 // University of Oklahoma, Department of Geography and Environmental Sustainability
-// mcwimberly@ou.edu 
-// Version 2.1 Released February 11, 2019
+// mcwimberly@ou.edu, dawn.nekorchuk@ou.edu 
+// Version 2.3 Released 2019-08-19
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,8 +22,11 @@ Map.setCenter(38, 11.5, 7);
 // Start and end dates for the data summary
 // GEE will slow down and run out of memory if we make this date range too large
 // These lines of code can be modified to access older data
+// Start date needs to be MODIS data acquisition date, otherwise "input required" error
+//  Also must be after MCST outage in June of 2001 (>=2001-06-26) because of missing image
 var startdate = ee.Date('2012-01-01');
-var enddate = ee.Date('2019-12-31');
+var enddate = ee.Date(Date.now());
+
 
 // Print information to the console
 print("Start date to process: ", startdate);
@@ -39,30 +41,18 @@ var make_datelist = function(n) {
 dates = dates.map(make_datelist);
  
 ////////////////////////////////////////////////////////////////////////////////
-// Step 2: Calculate precipitation variables, join TRMM and GPM
+// Step 2: Calculate precipitation variables
 ////////////////////////////////////////////////////////////////////////////////
 
-// Filter trmm and gpm by date
-var trmm_filt = trmm_3b42
-  .filterDate(startdate, enddate.advance(1, 'day'))
-  .select('precipitation');
-
+// Filter gpm by date
 var gpm_filt = gpm
   .filterDate(startdate, enddate.advance(1, 'day'))
   .select('precipitationCal');
 
-// Calculate date of most recent measurement for trmm and gpm
-var trmm_max = trmm_filt.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
-var trmm_edate =  ee.Date(trmm_max.get('max'));
+// Calculate date of most recent measurement for gpm
 var gpm_max = gpm_filt.reduceColumns(ee.Reducer.max(), ["system:time_start"]);
 var gpm_edate =  ee.Date(gpm_max.get('max'));
-
-// Determine date of most recent measurement (trmm or gpm)
-var prec_edate = ee.Date(ee.Algorithms.If(
-    ee.DateRange('1999-01-01', '2014-03-12').contains(enddate),
-    trmm_edate,
-    gpm_edate
-));
+var prec_edate = gpm_edate;
 
 // Create list of dates for the precipitation time series
 var prec_days = prec_edate.difference(startdate, 'day');
@@ -71,7 +61,7 @@ var make_precdates = function(n) {
   return startdate.advance(n, 'day');
 };
 prec_dates = prec_dates.map(make_precdates);
- 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Step 3: Calculate LST variables
 ////////////////////////////////////////////////////////////////////////////////
@@ -243,20 +233,11 @@ var brdf_dates = brdf_dates.map(make_brdfdates);
 var proc_prec = function (curdate) {
     var curyear = ee.Date(curdate).get('year');
     var curdoy = ee.Date(curdate).getRelative('day', 'year').add(1);
-    var totprec = ee.Image(ee.Algorithms.If(
-        ee.DateRange(ee.Date('1900-01-01'), ee.Date('2014-03-12')).contains(curdate),
-        trmm_filt.select('precipitation')
-                 .filterDate(ee.Date(curdate), ee.Date(curdate).advance(1, 'day'))
-                 .sum()
-                 .multiply(3)
-                 .rename('totprec'),
-        gpm_filt.select('precipitationCal')
+    var totprec = gpm_filt.select('precipitationCal')
                 .filterDate(ee.Date(curdate), ee.Date(curdate).advance(1, 'day'))
                 .sum()
                 .multiply(0.5)
-                .rename('totprec')
-    ));
-    //var lst_day_c = lst_day.select('lst_day').subtract(ee.Image(273.15));
+                .rename('totprec');
     return totprec
         .set('doy', curdoy)
         .set('year', curyear)
@@ -265,7 +246,6 @@ var proc_prec = function (curdate) {
 
 // Map function over list of dates
 var daily_prec = ee.ImageCollection.fromImages(prec_dates.map(proc_prec));
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -530,7 +510,7 @@ var yearlabel = ui.Label({
     style: {fontSize: '17px', fontWeight: 'bold'}
   });
 var yearindex = ui.Slider({
-  min: 2012,
+  min: 2014,
   max: 2019,
   step: 1,
   onChange: showLayer, 
@@ -629,13 +609,13 @@ var exPanel = ui.Panel({
 
 // Add the panels to the map and set default values.
 panel.widgets().set(1, yearPanel);
-yearindex.setValue(2018);
+yearindex.setValue(2019);
 panel.widgets().set(2, datePanel);
 dateindex.setValue(165);
 panel.widgets().set(4, sdPanel);
-sdinput.setValue('2018-01-01')
+sdinput.setValue('2019-01-01')
 panel.widgets().set(5, edPanel);
-edinput.setValue('2018-12-31')
+edinput.setValue('2019-12-31')
 panel.widgets().set(6, exPanel);
 
 // Add the panel to the ui.root.
