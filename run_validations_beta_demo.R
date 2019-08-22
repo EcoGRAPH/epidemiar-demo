@@ -48,7 +48,7 @@ epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_n
 env_data <- corral_environment(report_woredas = report_woredas)
 
 # read in climatology / environmental reference data
-env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
+env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
