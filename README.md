@@ -8,4 +8,4 @@ See walkthrough and other documentation in this project under the `documentation
 
 Many of the customized scripts are based around issues in the real situation which do not exist in the simulated data, but are retained in the code here for demonstration on how it could work (e.g. data cleaning functions inside data corral functions for collating surveillance data). 
 
-This demo is to be used alongside the package `epidemiar` version 1.4.0 or higher, which you can find here: https://github.com/EcoGRAPH/epidemiar. 
+This demo is to be used alongside the package `epidemiar` version 2.0.0 or higher, which you can find here: https://github.com/EcoGRAPH/epidemiar. 
