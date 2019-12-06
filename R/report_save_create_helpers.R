@@ -120,9 +120,14 @@ merge_save_report <- function(rpt_data_main = NULL,
 
 # Function to compile pdf from rnw from script
 # Reference: https://stackoverflow.com/questions/34591487/difference-compile-pdf-button-in-rstudio-vs-knit-and-knit2pdf
+# Defaults are for forecasting report, but can also be used for validation report with different parameter values
+
 create_pdf <- function(new_data = "report/report_data.RData",
                        #whichever file is called in the formatting file (nearly unalterable by function call, so coded here)
                        report_data_file = "report/report_data.RData",
+                       #working directory for knitcall
+                       working_dir = "report",
+                       #do not include directory, if inside the working_dir
                        formatting_file = "epidemia_report_demo.Rnw",
                        report_save_file = NULL,
                        show = TRUE,
@@ -145,7 +150,7 @@ create_pdf <- function(new_data = "report/report_data.RData",
     }
     
     # Compile the pdf, setting working directory specifically for knit run
-    setwd("report")
+    setwd(working_dir)
     #paste together command arguments
     knitcall <- paste0("library(knitr); knit2pdf('", formatting_file, "')")
     #new R session for clean environment
@@ -158,7 +163,7 @@ create_pdf <- function(new_data = "report/report_data.RData",
     if (sysknitres == 0L){
       
       #this is the format of the automatically generated pdf by the Rnw file
-      base_output <- paste0("report/", file_path_sans_ext(formatting_file), ".pdf") 
+      base_output <- file.path(working_dir, paste0(tools::file_path_sans_ext(formatting_file), ".pdf")) 
       
       #if saving to a specific file name
       if (exists("report_save_file")){
@@ -183,3 +188,34 @@ create_pdf <- function(new_data = "report/report_data.RData",
 } #end create_pdf
 
 
+# Function to save the validation report data (per species, not combined like forecast report), 
+#  generates the pdf report and saves it
+create_validation_report <- function(val_results){
+  #create appropriate file names
+  filetail <- paste0("_", val_results$metadata$casefield, 
+                     "_", lubridate::isoyear(val_results$metadata$date_start), 
+                     "W", lubridate::isoweek(val_results$metadata$date_start),
+                     "_", val_results$metadata$total_timesteps, "wks")
+  
+  valid_savefile <- file.path("validation",
+                              paste0("validation", 
+                                     filetail, 
+                                     ".RDS"))
+  
+  report_output_file <- paste0(tools::file_path_sans_ext(valid_savefile),
+                               ".pdf")
+  
+  
+  #save the RDS data
+  saveRDS(val_results, valid_savefile)
+  
+  #create and save the pdf report
+  #uses the create_pdf() function originally built for forecast reports, but can adapt for this use
+  create_pdf(new_data = valid_savefile,
+             report_data_file = file.path("validation", "validation_report_data.RDS"),
+             working_dir = "validation",
+             formatting_file = "epidemia_validation.Rnw",
+             report_save_file = report_output_file,
+             show = TRUE,
+             skip_check = TRUE)
+}
