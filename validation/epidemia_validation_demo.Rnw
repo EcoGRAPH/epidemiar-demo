@@ -100,11 +100,11 @@ report_end <- val$metadata$date_start + lubridate::weeks(val$metadata$total_time
 report_date_range <- paste0(report_start %>% format(format = "%d %B %Y"), " - ", report_end %>% format(format = "%d %B %Y"))
 report_date_range_short <- paste0(report_start %>% format(format = "%d %b %Y"), " - ", report_end %>% format(format = "%d %b %Y"))
 
-report_title <- paste0("Model Validation for Amhara Malaria Forecasting",
+report_title <- paste0("Demonstration Model Validation for Malaria Forecasting",
                        "\\\\", disease_name,
                        "\\\\", report_date_range)
 
-report_rhead <- paste("Validation for", disease_name_short, ":", report_date_range_short)
+report_rhead <- paste("Demo Validation for", disease_name_short, ":", report_date_range_short)
 
 
 date_created <- format(val$metadata$date_created, format = "%d %b %Y")

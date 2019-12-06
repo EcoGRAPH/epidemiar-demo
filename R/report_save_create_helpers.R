@@ -214,7 +214,7 @@ create_validation_report <- function(val_results){
   create_pdf(new_data = valid_savefile,
              report_data_file = file.path("validation", "validation_report_data.RDS"),
              working_dir = "validation",
-             formatting_file = "epidemia_validation.Rnw",
+             formatting_file = "epidemia_validation_demo.Rnw",
              report_save_file = report_output_file,
              show = TRUE,
              skip_check = TRUE)
