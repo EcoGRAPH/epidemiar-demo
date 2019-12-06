@@ -267,7 +267,7 @@ corral_epidemiological <- function(report_woreda_names){
     #need to set certain column types to avoid excessive warnings
     #Ethiopian dates do not fit well into other date classes due to calendar format
     #grab column names
-    nms <- names(suppressWarnings(readxl::read_xlsx(epi_xlsx_files[[i]])))
+    nms <- names(suppressMessages(suppressWarnings(read_xlsx(epi_xlsx_files[[i]]))))
     
     #quick check for an empty/blank file, if blank, it does nothing to skip to next file
     if (length(nms) > 0) {
@@ -275,7 +275,7 @@ corral_epidemiological <- function(report_woreda_names){
       #set the Ethiopian dates to text, and have it guess from data on the rest
       ct <- ifelse(grepl("Report Started Date|Report End Date", nms), "text", "guess")
       #read in, "NA"s to be read as NA values 
-      this_data <- readxl::read_xlsx(epi_xlsx_files[[i]], col_types = ct, na = "NA") 
+      this_data <- suppressMessages(suppressWarnings(readxl::read_xlsx(epi_xlsx_files[[i]], col_types = ct, na = "NA"))) 
       #process data columns
       this_data <- this_data %>% 
         dplyr::transmute(woreda_name = `Woreda/Hospital`,
