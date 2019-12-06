@@ -1,0 +1,363 @@
+<<set_default_opts, echo=FALSE>>=
+
+## Amhara-malaria version
+
+opts_chunk$set(echo = FALSE, dev = "png", dpi=150, concordance=TRUE)
+@
+
+
+<<report_data_functions, message=FALSE, warning=FALSE>>=
+if (!require("pacman")) install.packages("pacman")
+library(pacman)
+pacman::p_load(knitr, tinytex,  
+               readxl, magrittr, dplyr, tidyr, lubridate, 
+               xtable,
+               ggplot2, scales, grid, sf) 
+library(epidemiar)
+
+# #here load
+#val <- readRDS("validation/validation_report_data.RDS")
+# source("R/arrange_and_draw.R")
+# load("data/am_sf.RData")
+# load("data/am_sf_simpl.RData")
+# woredas <- read_xlsx("data/woredas.xlsx", na = "NA") %>% 
+#   filter(!is.na(id)) 
+
+
+#load report data
+val <- readRDS("validation_report_data.RDS")
+
+#loading of local ggplot2 themes
+source("../R/arrange_and_draw.R")
+
+#load st objects of Amhara spatial data
+load("../data/am_sf.RData")
+load("../data/am_sf_simpl.RData")
+
+#read woreda information (metadata) file
+woredas <- read_xlsx("../data/woredas.xlsx", na = "NA") %>%
+  #NOTE: "WID" correctly matched shapefile wid (after class conversion if necessary)
+  # However WID is not unique. Unwanted entries (hospitals in that woreda, etc)
+  # can be removed by removing entries with id of NA.
+  #Note id is very similar to WID, but NOT the same: see Shewa Robit, Kewet, Kobo Town, Raya Kobo
+  filter(!is.na(id))
+
+
+#zone level for overlay
+# Note: do NOT do this on simplified set, will introduce a lot of artifacts
+zones_am <- am_sf %>% 
+  group_by(zone) %>% 
+  summarize(geometry = sf::st_union(geometry)) %>% 
+  ungroup
+
+#woredas used in report data
+report_woreda_names <- val$validations[[1]]$validation_grouping %>% dplyr::pull(woreda_name) %>% unique() %>% sort()
+
+#woreda info on used woredas
+report_woredas <- tibble(report_woreda_names) %>% 
+  left_join(woredas %>% select(woreda_name, WID, zone_name),
+            by = c("report_woreda_names" = "woreda_name")) %>% 
+  rename(woreda_name = report_woreda_names)
+
+#Base plotting
+#often used themes (originally from ggplot_themes)
+theme_map <- theme(axis.title = element_blank(),
+                   axis.text = element_blank(),
+                   axis.ticks = element_blank(),
+                   axis.line = element_blank(),
+                   panel.background = element_blank(),
+                   panel.grid = element_blank(),
+                   axis.ticks.length = unit(0, "null"))
+theme_no_margin <- theme(plot.margin = unit(c(0, 0, 0, 0), "mm"))
+#used in alert summary maps
+theme_model_result_map <- theme(legend.key.height = unit(3.0, "lines"))
+
+#Create base plot 
+# other plots will drawn on top - but base will only have to be created once
+base_amhara_plot <- ggplot() +
+  #Amhara region
+  geom_sf(data = am_sf_simpl, fill = NA, color = "gray80", size = 0.05) +
+  #plot adjustments
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  theme_map + 
+  theme_no_margin 
+
+@
+
+<<generate_report_title, warning=FALSE, message=FALSE>>=
+
+disease_name <- dplyr::case_when(val$metadata$casefield == "test_pf_tot" ~ paste("\\textit{Plasmodium falciparum} and mixed species"),
+                                 val$metadata$casefield == "test_pv_only" ~ paste("\\textit{Plasmodium vivax}"))
+
+disease_name_short <- dplyr::case_when(val$metadata$casefield == "test_pf_tot" ~ paste("\\textit{P. falciparum}"),
+                                 val$metadata$casefield == "test_pv_only" ~ paste("\\textit{P. vivax}"))
+
+
+report_start <- val$metadata$date_start
+report_end <- val$metadata$date_start + lubridate::weeks(val$metadata$total_timesteps) 
+
+report_date_range <- paste0(report_start %>% format(format = "%d %B %Y"), " - ", report_end %>% format(format = "%d %B %Y"))
+report_date_range_short <- paste0(report_start %>% format(format = "%d %b %Y"), " - ", report_end %>% format(format = "%d %b %Y"))
+
+report_title <- paste0("Model Validation for Amhara Malaria Forecasting",
+                       "\\\\", disease_name,
+                       "\\\\", report_date_range)
+
+report_rhead <- paste("Validation for", disease_name_short, ":", report_date_range_short)
+
+
+date_created <- format(val$metadata$date_created, format = "%d %b %Y")
+
+@
+
+\documentclass{article}
+
+\usepackage[a4paper]{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2cm,rmargin=2.7cm}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{titling}
+\setlength{\droptitle}{-15ex} % shift title up
+\setlength{\headheight}{24pt} %added b/c of warnings too small
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\rhead{\Sexpr{report_rhead}}
+\renewcommand{\headrulewidth}{0pt}
+\rfoot{Report compiled on \Sexpr{date_created}}
+
+\begin{document}
+
+\title{\Sexpr{report_title}}
+\author{EPIDEMIA Team}
+\maketitle
+
+\overfullrule=2cm
+
+\section{Skill Scores Summaries} \label{skill_score_summaries}
+\bigskip
+
+<<skill_overall, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=5.5, fig.pos='H', out.width='.96\\linewidth'>>=
+
+sk_ovr <- val$skill_scores$skill_overall
+#split persistence & averageweek to turn into long form
+sk_ovr_np <- sk_ovr %>% 
+  select(timestep_ahead, ends_with("_persistence")) %>% 
+  #strip endings off stats column names
+  rename_at(.vars = vars(ends_with("_persistence")),
+            .funs = list(~ sub("_persistence$", "", .))) %>% 
+  #add new model column
+  mutate(model_name = "Persistence")
+sk_ovr_naw <- sk_ovr %>% 
+  select(timestep_ahead, ends_with("_averageweek")) %>% 
+  #strip endings off stats column names
+  rename_at(.vars = vars(ends_with("_averageweek")),
+            .funs = list(~ sub("_averageweek$", "", .))) %>% 
+  #add new model column
+  mutate(model_name = "Average Week of Year")
+#Bind for long form of model
+sk_ovr_long <- bind_rows(sk_ovr_np, sk_ovr_naw) %>% 
+  #Now pivot for long form of all statistics
+  tidyr::pivot_longer(starts_with("skill_"), names_to = "statistic", values_to = "score") %>% 
+  #and remove unneeded 'skill_' prefix
+  mutate(statistic = stringr::str_remove(statistic, "skill_"))
+
+ggplot() +
+  geom_boxplot(data = sk_ovr_long, 
+            aes(x = factor(timestep_ahead), 
+                y = score,
+                fill = model_name)) +
+  geom_hline(yintercept = 0, size = 1, color = "darkgreen") +
+  xlab("Number of Weeks into the Future") +
+  ylab("Skill Scores") +
+  scale_fill_brewer(name = expression("Compared to Na\u00EFve Model"), palette = "Paired") +
+  theme_bw() +
+  theme(panel.grid.minor.y = element_blank()) +
+  theme(legend.position = "bottom") +
+  #common scale for all boxplots (here and woreda level)
+  coord_cartesian(ylim = c(-1, 1))
+
+
+@
+
+\vspace{\fill}
+\noindent Skill scores show the improvement (with values greater than 0) of the forecast model over simple naive models. There are three accuracy statistics used: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), an a R2 (variance explained). These statstics are compared against the naive models to give the skill scores. The boxplot shows the concordance of skill among the three statistics. Higher values (0 to 1) indicate the greater skill of the forecast models over the simple naive models. 
+
+\medskip
+\noindent The x-axis is the number of weeks being forecasted into the future. The validation was run with the assumption that there is a reporting lag of \Sexpr{val$metadata$reporting_lag} weeks. 
+
+
+\newpage
+\section{Maps of Skill Statistics}
+
+<<pivot_skills, warning=FALSE, message=FALSE>>=
+
+# to be used in both naive model sections
+
+sk_grp <- val$skill_scores$skill_grouping 
+
+#split persistence & averageweek to turn into long form
+sk_grp_np <- sk_grp %>% 
+  select(woreda_name, timestep_ahead, ends_with("_persistence")) %>% 
+  #strip endings off stats column names
+  rename_at(.vars = vars(ends_with("_persistence")),
+            .funs = list(~ sub("_persistence$", "", .))) %>% 
+  #add new model column
+  mutate(model_name = "Persistence")
+
+sk_grp_naw <- sk_grp %>% 
+  select(woreda_name, timestep_ahead, ends_with("_averageweek")) %>% 
+  #strip endings off stats column names
+  rename_at(.vars = vars(ends_with("_averageweek")),
+            .funs = list(~ sub("_averageweek$", "", .))) %>% 
+  #add new model column
+  mutate(model_name = "Average Week of Year")
+
+#Bind for long form of model
+sk_grp_long <- bind_rows(sk_grp_np, sk_grp_naw) %>% 
+  #Now pivot for long form of all statistics
+  tidyr::pivot_longer(starts_with("skill_"), names_to = "statistic", values_to = "score") %>% 
+  #and remove unneeded 'skill_' prefix
+  mutate(statistic = stringr::str_remove(statistic, "skill_")) %>% 
+  #set ordered factor level of statistics
+  mutate(statistic = factor(statistic, levels = c("MAE", "RMSE", "R2"), ordered = TRUE))
+
+@
+
+
+
+\subsection{Average Week of Year}
+
+<<skill_map_avewk, include=FALSE>>=
+
+#Average week filtering
+sk_grp_long_avewk <- sk_grp_long %>% 
+  dplyr::filter(model_name == "Average Week of Year") %>% 
+  ungroup()
+
+#geom joined data
+sk_geom_avewk <- am_sf_simpl %>%
+  mutate(woreda = as.character(woreda)) %>% 
+  left_join(sk_grp_long_avewk, by = c("woreda" = "woreda_name")) %>% 
+  na.omit()
+
+#loop for each interval
+#list of timesteps
+timestep_list <- sk_grp_long_avewk$timestep_ahead %>%  unique() %>% sort()
+out_avewk = vector('list', length(timestep_list))
+
+#timestep
+for (t in seq_along(timestep_list)){
+  this_step <- timestep_list[[t]]
+  
+  time_data <- sk_geom_avewk %>% 
+    filter(timestep_ahead == this_step)
+  
+  #want to include a pagebreak every 4 weeks
+  new_page <- ifelse(t %% 4 == 0, TRUE, FALSE)
+
+  out_avewk[[t]] <- knit_child('epidemia_validation_child.Rnw')
+
+}
+
+@
+
+\Sexpr{paste(out_avewk, collapse = '\n')}
+
+\newpage
+\subsection{Persistence}
+
+<<skill_map_pers, include=FALSE>>=
+
+#Persistence filtering
+sk_grp_long_pers <- sk_grp_long %>% 
+  dplyr::filter(model_name == "Persistence") %>% 
+  ungroup()
+
+#geom joined data
+sk_geom_pers <- am_sf_simpl %>%
+  mutate(woreda = as.character(woreda)) %>% 
+  left_join(sk_grp_long_pers, by = c("woreda" = "woreda_name")) %>% 
+  na.omit()
+
+#loop for each interval
+#list of timesteps
+timestep_list <- sk_grp_long_pers$timestep_ahead %>% unique() %>% sort()
+out_pers = vector('list', length(timestep_list))
+
+#timestep
+for (t2 in seq_along(timestep_list)){
+  this_step <- timestep_list[[t2]]
+  
+  time_data <- sk_geom_pers %>% 
+    filter(timestep_ahead == this_step)
+  
+  #want to include a pagebreak every 4 weeks
+  new_page <- ifelse(t2 %% 4 == 0, TRUE, FALSE)
+
+  out_pers[[t2]] <- knit_child('epidemia_validation_child.Rnw')
+
+}
+
+@
+
+\Sexpr{paste(out_pers, collapse = '\n')}
+
+\newpage
+\section{Skill per Woreda}
+
+<<skill_woreda, warning=FALSE, message=FALSE, fig.width = 6, fig.height=3.1>>=
+
+for (w in seq_along(report_woreda_names)){
+  
+  this_woreda <- report_woreda_names[[w]]
+  woreda_data <- sk_grp_long %>% 
+    filter(woreda_name == this_woreda)
+  
+  w_plot <- ggplot() +
+    geom_boxplot(data = woreda_data, 
+                 aes(x = factor(timestep_ahead), 
+                     y = score,
+                     fill = model_name)) +
+    geom_hline(yintercept = 0, size = 1, color = "darkgreen") +
+    labs(title = this_woreda) +
+    xlab("Number of Weeks into the Future") +
+    ylab("Skill Scores") +
+    scale_fill_brewer(name = expression("Compared to Na\u00EFve Model"), 
+                      palette = "Paired") +
+    theme_bw() +
+    theme(panel.grid.minor.y = element_blank()) +
+    theme(legend.position = "bottom") +
+    #deal with statis different lower limits by capping at -1 for comparability
+    coord_cartesian(ylim = c(-1, 1))
+                           
+  
+  print(w_plot)
+}
+
+@
+
+
+\newpage
+\section{Accuracy Statistics}
+\subsection{Overall Model}
+\bigskip
+
+<<statistics_overall, message = FALSE, echo=FALSE, results='asis'>>=
+
+stats_table <- val$validations[[1]]$validation_overall %>% 
+  rename("Week Ahead" = timestep_ahead)
+
+print(xtable(stats_table, digits = c(0, 0, 1, 1, 2)),
+      include.rownames = FALSE,  
+      floating = FALSE, comment = FALSE)  
+
+@
+
+\vspace{\fill}
+
+\noindent This table contains the raw accuracy statistic values for the forecast model overall for each week forecast into the future.  There are three accuracy statistics used: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), an a R2 (variance explained). The validation was run with the assumption that there is a reporting lag of \Sexpr{val$metadata$reporting_lag} weeks. 
+
+
+\end{document}

@@ -1,0 +1,38 @@
+
+\noindent
+\Sexpr{this_step} Weeks into the Future
+\smallskip
+
+<<message=FALSE, warning=FALSE, fig.width=6, fig.height=2.05>>=
+
+t_plot <- base_amhara_plot +
+  geom_sf(data = time_data, 
+          #color by statistic score
+          aes(fill = score), 
+          #reduce size of border lines
+          size = 0.1) +
+  scale_fill_gradient2(low = "purple4",
+                       mid = "white",
+                       high = "darkgreen",
+                       midpoint = 0,
+                       na.value = "gray70",
+                       #common scale for all, lumping all <= -1 together
+                       breaks = c(1, 0, -1),
+                       labels = c("1", "0", "\u2264-1"),
+                       limits = c(-1, 1),
+                       #to prevent out of bounds values being replaced with NA
+                       oob = scales::squish) +
+  facet_grid(. ~ statistic)
+
+print(t_plot)
+
+@
+
+<<message=FALSE, warning=FALSE, echo=FALSE, results='asis'>>=
+
+#page break every 4 maps
+if(new_page) {cat('\\newpage')}
+
+@
+
+\smallskip
