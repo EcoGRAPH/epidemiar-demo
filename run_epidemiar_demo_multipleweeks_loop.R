@@ -60,13 +60,6 @@ epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_n
 # read & process environmental data for woredas in report
 env_data <- corral_environment(report_woredas = report_woredas)
 
-# ## Optional: Date Filtering for running certain week's report
-# req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) #week is always end of the week, 7th day
-# epi_data <- epi_data %>% 
-#   filter(obs_date <= req_date)
-# env_data <- env_data %>% 
-#   filter(obs_date <- req_date)
-
 # read in climatology / environmental reference data
 env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 
@@ -75,28 +68,6 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
 source("data/model_parameters_amhara.R")
-
-# read in latest model to use - select model per species with latest file created time
-# if you are running historical reports, make sure the model used makes sense
-# pfm
-all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
-if (nrow(all_pfm_models) > 0){
-  latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
-  pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
-} else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
-#or select specific file
-#latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
-#pfm_model_obj <- readRDS(latest_pfm_model)$model_obj
-
-#pv
-all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
-if (nrow(all_pv_models) > 0){
-  latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
-  pv_model_obj <- readRDS(latest_pv_model)$model_obj
-} else { latest_pv_model <- ""; pv_model_obj <- NULL}
-#or select specific model
-#latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
-#pv_model_obj <- readRDS(latest_pv_model)$model_obj
 
 
 # 3-4B. Loop run epidemiar ------------------------------------------------
@@ -140,7 +111,7 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
                                    fc_control = pfm_fc_control,
                                    env_ref_data = env_ref_data, 
                                    env_info = env_info,
-                                   model_obj = pfm_model_obj)
+                                   model_choice = pfm_model_choice)
     
     # P. vivax
     message("Running P. vivax")
@@ -161,13 +132,9 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
                                   fc_control = pv_fc_control,
                                   env_ref_data = env_ref_data, 
                                   env_info = env_info,
-                                  model_obj = pv_model_obj)
+                                  model_choice = pv_model_choice)
     
-    #append model information to report data metadata
-    pfm_reportdata$params_meta$model_used <- latest_pfm_model
-    pv_reportdata$params_meta$model_used <- latest_pv_model
-    
-    
+
     #merging pfm & pv data, save out, and create pdf
     merge_save_report(rpt_data_main = pfm_reportdata, 
                       rpt_data_secd = pv_reportdata,
