@@ -44,66 +44,70 @@ epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_n
 # read & process environmental data for woredas in report
 env_data <- corral_environment(report_woredas = report_woredas)
 
+## Optional: For slight speed increase, 
+# date filtering to remove older environmental data.
+# older env data was included to demo epidemiar::env_daily_to_ref() function.
+env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #week is always end of the week, 7th day
+env_data <- env_data %>%
+  filter(obs_date >= env_start_date)
+
 # read in climatology / environmental reference data
-env_ref_data <- read_csv("data/env_GEE_ref_data.csv", col_types = cols())
+env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
+source("data/epidemiar_settings_amhara.R")
 
 
 # 3. Run epidemia & create model only ---------------------------------------
 
-#Run modeling to get report data
-# with check on current epidemiology and environmental data sets
+#UPDATE model run to TRUE
+pfm_report_settings$model_run <- TRUE
+pv_report_settings$model_run <- TRUE
+
+#Run with check on current epidemiology and environmental data sets
 
 if (exists("epi_data") & exists("env_data")){
   
   # P. falciparum & mixed
   message("Running P. falciparum & mixed")
-  pfm_model <- run_epidemia(epi_data = epi_data, 
-                            casefield = test_pf_tot, 
-                            populationfield = pop_at_risk,
-                            inc_per = inc_per,
-                            groupfield = woreda_name, 
-                            week_type = "ISO",
-                            report_period = report_period, 
-                            ed_summary_period = ed_summary_period,
-                            ed_method = ed_method, 
-                            ed_control = pfm_ed_control,
-                            env_data = env_data, 
-                            obsfield = environ_var_code, 
-                            valuefield = obs_value, 
-                            forecast_future = forecast_future, 
-                            fc_control = pfm_fc_control,
-                            env_ref_data = env_ref_data, 
-                            env_info = env_info,
-                            model_choice = pfm_model_choice,
-                            model_run = TRUE)
+  pfm_reportdata <- run_epidemia(
+    #data
+    epi_data = epi_data, 
+    env_data = env_data, 
+    env_ref_data = env_ref_data, 
+    env_info = env_info,
+    #fields
+    casefield = test_pf_tot, 
+    groupfield = woreda_name, 
+    populationfield = pop_at_risk,
+    obsfield = environ_var_code, 
+    valuefield = obs_value,
+    #required settings
+    fc_model_family = fc_model_family,
+    #other settings
+    report_settings = pfm_report_settings)
   
   # P. vivax
   message("Running P. vivax")
-  pv_model <- run_epidemia(epi_data = epi_data, 
-                           casefield = test_pv_only, 
-                           populationfield = pop_at_risk,
-                           inc_per = inc_per,
-                           groupfield = woreda_name, 
-                           week_type = "ISO",
-                           report_period = report_period, 
-                           ed_summary_period = ed_summary_period,
-                           ed_method = ed_method, 
-                           ed_control = pfm_ed_control,
-                           env_data = env_data, 
-                           obsfield = environ_var_code, 
-                           valuefield = obs_value, 
-                           forecast_future = forecast_future, 
-                           fc_control = pv_fc_control,
-                           env_ref_data = env_ref_data, 
-                           env_info = env_info,
-                           model_choice = pfm_model_choice,
-                           model_run = TRUE)
+  pv_reportdata <- run_epidemia(
+    #data
+    epi_data = epi_data, 
+    env_data = env_data, 
+    env_ref_data = env_ref_data, 
+    env_info = env_info,
+    #fields
+    casefield = test_pv_only, 
+    groupfield = woreda_name, 
+    populationfield = pop_at_risk,
+    obsfield = environ_var_code, 
+    valuefield = obs_value,
+    #required settings
+    fc_model_family = fc_model_family,
+    #other settings
+    report_settings = pv_report_settings)
   
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
