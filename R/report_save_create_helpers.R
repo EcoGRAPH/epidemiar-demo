@@ -39,8 +39,8 @@ merge_save_report <- function(rpt_data_main = NULL,
   ## For two data reports:
   
   ## Check same time ranges
-  if (!all.equal(rpt_data_main$params_meta$report_dates, 
-                 rpt_data_secd$params_meta$report_dates)){
+  if (!isTRUE(all.equal(rpt_data_main$params_meta$report_dates, 
+                        rpt_data_secd$params_meta$report_dates))){
     stop("Reports were not run with the same report date ranges")
   }
   
@@ -86,9 +86,9 @@ merge_save_report <- function(rpt_data_main = NULL,
   
   #Optional second save
   if (second_save){
-    save_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$known$max), 
-                            "W", isoweek(rpt_data_main$params_meta$report_dates$known$max))
-    save_name <- file_path_sans_ext(save_file)
+    save_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
+                            "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max))
+    save_name <- tools::file_path_sans_ext(save_file)
     save_ext <- file_ext(save_file)
     second_save_file <- paste0(save_name, save_filetail, ".", save_ext)
     
@@ -103,10 +103,10 @@ merge_save_report <- function(rpt_data_main = NULL,
   ## Creating report
   if (create_report){
     #generate file name
-    report_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$known$max), 
-                              "W", isoweek(rpt_data_main$params_meta$report_dates$known$max))
+    report_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
+                              "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max))
     report_output_file <- paste0("report/",
-                                 file_path_sans_ext(formatting_file),
+                                 tools::file_path_sans_ext(formatting_file),
                                  report_filetail, ".pdf")
     
     create_pdf(new_data = save_file, 
@@ -121,7 +121,6 @@ merge_save_report <- function(rpt_data_main = NULL,
 # Function to compile pdf from rnw from script
 # Reference: https://stackoverflow.com/questions/34591487/difference-compile-pdf-button-in-rstudio-vs-knit-and-knit2pdf
 # Defaults are for forecasting report, but can also be used for validation report with different parameter values
-
 create_pdf <- function(new_data = "report/report_data.RData",
                        #whichever file is called in the formatting file (nearly unalterable by function call, so coded here)
                        report_data_file = "report/report_data.RData",
@@ -151,26 +150,25 @@ create_pdf <- function(new_data = "report/report_data.RData",
     
     # Compile the pdf, setting working directory specifically for knit run
     setwd(working_dir)
-    #paste together command arguments
     knitcall <- paste0("library(knitr); knit2pdf('", formatting_file, "')")
     #new R session for clean environment
     #capture result of call in sysknitres
     sysknitres <- system2("Rscript", c("-e", shQuote(knitcall)), stderr = "", stdout = "", wait = TRUE)
-    #fix working directory
+    #system2("Rscript", c("-e", shQuote(knitcall)))
     setwd("..")
     
     #check if pdf generated correctly (sysknitres == 0L on success)
     if (sysknitres == 0L){
       
       #this is the format of the automatically generated pdf by the Rnw file
-      base_output <- file.path(working_dir, paste0(tools::file_path_sans_ext(formatting_file), ".pdf")) 
+      base_output <- file.path(working_dir, paste0(tools::file_path_sans_ext(formatting_file), ".pdf"))
       
       #if saving to a specific file name
       if (exists("report_save_file")){
         file.copy(from = base_output,
                   to = report_save_file,
                   overwrite = TRUE)
-        message(paste0("Saving report to /", report_save_file))
+        message(paste0("Saving to /", report_save_file))
       }
       
       if (show){
@@ -183,9 +181,9 @@ create_pdf <- function(new_data = "report/report_data.RData",
       
     } else {message("Error occurred in generating pdf. Check that MiKTeX is installed, and found in your system PATH.")}
     
-  } #end continue_ans == 1
+  } #if continue with overwrite
   
-} #end create_pdf
+}
 
 
 # Function to save the validation report data (per species, not combined like forecast report), 
@@ -219,3 +217,4 @@ create_validation_report <- function(val_results){
              show = TRUE,
              skip_check = TRUE)
 }
+
