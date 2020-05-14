@@ -1,20 +1,28 @@
 # ###############################################################################################
 #
-# This script does all the data collating and processing before calling the epidemiar function
-# to run the modeling, forecasting, and early detection and early warning alert algorithms. 
+# This script does all the data collating and processing before calling the
+# epidemiar function to run the modeling, forecasting, and early detection and
+# early warning alert algorithms.
 #
-# At the end, this script will generate a pdf report using epidemia_report_demo.Rnw
+# At the end, this script will generate a pdf report using
+# epidemia_report_demo.Rnw
 #
-# See documentation/walkthrough.pdf for more details on each step. 
+# See documentation/walkthrough.pdf for more details on each step.
 #
 # ###############################################################################################
 
 # 0. Looping version ------------------------------------------------------
 #
-# This version of the script can be used to loop through multiple weeks to generate reports for each.
+# This version of the script can be used to loop through multiple weeks to
+# generate reports for each.
 #
-# Set the loop variable to TRUE, and change the isoyear and isoweeks wanted. 
+# Set the loop variable to TRUE, and change the isoyear and isoweeks wanted.
 #
+# This is different from just adjusting the fc_start_date, because this censors
+# epidemiological and environmental data as well, mimicing what data would be
+# available at the time, rather than changing when forecasting started but using
+# all available data.
+
 
 loop <- TRUE
 wk_list <- c(epidemiar::make_date_yw(year = 2016, week = c(23:24), weekday = 7),
@@ -60,6 +68,13 @@ epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_n
 # read & process environmental data for woredas in report
 env_data <- corral_environment(report_woredas = report_woredas)
 
+## Optional: For slight speed increase, 
+# date filtering to remove older environmental data.
+# older env data was included to demo epidemiar::env_daily_to_ref() function.
+env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #week is always end of the week, 7th day
+env_data <- env_data %>%
+  filter(obs_date >= env_start_date)
+
 # read in climatology / environmental reference data
 env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 
@@ -67,7 +82,8 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
+source("data/epidemiar_settings_amhara.R")
+
 
 
 # 3-4B. Loop run epidemiar ------------------------------------------------
@@ -94,45 +110,41 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
     
     # P. falciparum & mixed
     message("Running P. falciparum & mixed")
-    pfm_reportdata <- run_epidemia(epi_data = this_epi_data, # 
-                                   casefield = test_pf_tot, 
-                                   populationfield = pop_at_risk,
-                                   inc_per = inc_per,
-                                   groupfield = woreda_name, 
-                                   week_type = "ISO",
-                                   report_period = report_period, 
-                                   ed_summary_period = ed_summary_period,
-                                   ed_method = ed_method, 
-                                   ed_control = pfm_ed_control,
-                                   env_data = this_env_data, #
-                                   obsfield = environ_var_code, 
-                                   valuefield = obs_value, 
-                                   forecast_future = forecast_future, 
-                                   fc_control = pfm_fc_control,
-                                   env_ref_data = env_ref_data, 
-                                   env_info = env_info,
-                                   model_choice = pfm_model_choice)
+    pfm_reportdata <- run_epidemia(
+      #data
+      epi_data = this_epi_data, #this week
+      env_data = this_env_data, #this week
+      env_ref_data = env_ref_data, 
+      env_info = env_info,
+      #fields
+      casefield = test_pf_tot, 
+      groupfield = woreda_name, 
+      populationfield = pop_at_risk,
+      obsfield = environ_var_code, 
+      valuefield = obs_value,
+      #required settings
+      fc_model_family = fc_model_family,
+      #other settings
+      report_settings = pfm_report_settings)
     
     # P. vivax
     message("Running P. vivax")
-    pv_reportdata <- run_epidemia(epi_data = this_epi_data, #
-                                  casefield = test_pv_only, 
-                                  populationfield = pop_at_risk,
-                                  inc_per = inc_per,
-                                  groupfield = woreda_name, 
-                                  week_type = "ISO",
-                                  report_period = report_period, 
-                                  ed_summary_period = ed_summary_period,
-                                  ed_method = ed_method, 
-                                  ed_control = pv_ed_control,
-                                  env_data = this_env_data, #
-                                  obsfield = environ_var_code, 
-                                  valuefield = obs_value, 
-                                  forecast_future = forecast_future, 
-                                  fc_control = pv_fc_control,
-                                  env_ref_data = env_ref_data, 
-                                  env_info = env_info,
-                                  model_choice = pv_model_choice)
+    pv_reportdata <- run_epidemia(
+      #data
+      epi_data = this_epi_data, #this week
+      env_data = this_env_data, #this week
+      env_ref_data = env_ref_data, 
+      env_info = env_info,
+      #fields
+      casefield = test_pv_only, 
+      groupfield = woreda_name, 
+      populationfield = pop_at_risk,
+      obsfield = environ_var_code, 
+      valuefield = obs_value,
+      #required settings
+      fc_model_family = fc_model_family,
+      #other settings
+      report_settings = pv_report_settings)
     
 
     #merging pfm & pv data, save out, and create pdf
