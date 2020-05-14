@@ -70,7 +70,7 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
+source("data/epidemiar_settings_amhara.R")
 
 
 # # If you have created cached models to use instead of regenerating a new model each run:
