@@ -81,8 +81,8 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
-# read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
+# read in forecast and modeling parameters
+source("data/epidemiar_settings_amhara.R")
 
 
 # 4. Validation P. falciparum ------------------------------------------------------
@@ -100,24 +100,21 @@ if (exists("epi_data") & exists("env_data")){
                                    skill_test = skill_test,
                                    reporting_lag = reporting_lag, 
                                    #copy of run_epidemia() parameters 
+                                   #data
                                    epi_data = epi_data, 
-                                   casefield = test_pf_tot, 
-                                   populationfield = pop_at_risk,
-                                   inc_per = inc_per,
-                                   groupfield = woreda_name, 
-                                   week_type = "ISO",
-                                   report_period = report_period, 
-                                   ed_summary_period = ed_summary_period,
-                                   ed_method = ed_method, 
-                                   ed_control = pfm_ed_control,
                                    env_data = env_data, 
-                                   obsfield = environ_var_code, 
-                                   valuefield = obs_value, 
-                                   forecast_future = forecast_future, 
-                                   fc_control = pfm_fc_control,
                                    env_ref_data = env_ref_data, 
                                    env_info = env_info,
-                                   model_choice = pfm_model_choice)
+                                   #fields
+                                   casefield = test_pf_tot, 
+                                   groupfield = woreda_name, 
+                                   populationfield = pop_at_risk,
+                                   obsfield = environ_var_code, 
+                                   valuefield = obs_value,
+                                   #required settings
+                                   fc_model_family = fc_model_family,
+                                   #other settings
+                                   report_settings = pfm_report_settings)
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 3 for data error messages.")
@@ -142,24 +139,21 @@ if (exists("epi_data") & exists("env_data")){
                                   skill_test = skill_test,
                                   reporting_lag = reporting_lag, 
                                   #copy of run_epidemia() parameters 
+                                  #data
                                   epi_data = epi_data, 
-                                  casefield = test_pv_only, 
-                                  populationfield = pop_at_risk,
-                                  inc_per = inc_per,
-                                  groupfield = woreda_name, 
-                                  week_type = "ISO",
-                                  report_period = report_period, 
-                                  ed_summary_period = ed_summary_period,
-                                  ed_method = ed_method, 
-                                  ed_control = pv_ed_control,
                                   env_data = env_data, 
-                                  obsfield = environ_var_code, 
-                                  valuefield = obs_value, 
-                                  forecast_future = forecast_future, 
-                                  fc_control = pv_fc_control,
                                   env_ref_data = env_ref_data, 
                                   env_info = env_info,
-                                  model_choice = pv_model_choice)
+                                  #fields
+                                  casefield = test_pv_only, 
+                                  groupfield = woreda_name, 
+                                  populationfield = pop_at_risk,
+                                  obsfield = environ_var_code, 
+                                  valuefield = obs_value,
+                                  #required settings
+                                  fc_model_family = fc_model_family,
+                                  #other settings
+                                  report_settings = pv_report_settings)
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
           Check Section 3 for data error messages.")
