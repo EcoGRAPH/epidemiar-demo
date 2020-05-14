@@ -29,6 +29,7 @@ source("../R/arrange_and_draw.R")
 load("../data/am_sf.RData")
 load("../data/am_sf_simpl.RData")
 
+
 #zone level for overlay
 # Note: do NOT do this on simplified set, will introduce a lot of artifacts
 zones_am <- am_sf %>% 
@@ -38,12 +39,13 @@ zones_am <- am_sf %>%
 
 
 #read woreda information (metadata) file
-woredas <- read_xlsx("../data/woredas.xlsx", na = "NA") %>% 
+woredas <- read_xlsx("../data/woredas.xlsx", na = "NA") %>%
   #NOTE: "WID" correctly matched shapefile wid (after class conversion if necessary)
   # However WID is not unique. Unwanted entries (hospitals in that woreda, etc)
-  # can be removed by removing entries with id of NA. 
+  # can be removed by removing entries with id of NA.
   #Note id is very similar to WID, but NOT the same: see Shewa Robit, Kewet, Kobo Town, Raya Kobo
-  filter(!is.na(id)) 
+  filter(!is.na(id))
+
 
 #woredas used in report data
 report_woreda_names <- params_meta$groupings
@@ -81,14 +83,17 @@ base_amhara_plot <- ggplot() +
 @
 
 <<generate_report_title>>=
-report_week_end <- params_meta$report_dates$known$max %>% 
+#Dates are the week prior to start of forecasting
+#When running default/expected weekly reports, this will be the date of last known epidemiological data
+#But may change if user sets fc_start_date differently
+report_week_end <- params_meta$report_dates$prev$max %>% 
   format(format = "%B %d, %Y")
-report_week_start <- as.Date(params_meta$report_dates$known$max - as.difftime(6, units = "days")) %>% 
-    format(format = "%B %d, %Y")
-report_week_dates <- paste0("Week ", lubridate::isoweek(params_meta$report_dates$known$max), ": ",
-                     report_week_start, " - ", report_week_end)
-report_dates_short <- paste0(lubridate::isoyear(params_meta$report_dates$known$max),
-                             " Week ", lubridate::isoweek(params_meta$report_dates$known$max))
+report_week_start <- as.Date(params_meta$report_dates$prev$max - as.difftime(6, units = "days")) %>% 
+  format(format = "%B %d, %Y")
+report_week_dates <- paste0("Week ", lubridate::isoweek(params_meta$report_dates$prev$max), ": ",
+                            report_week_start, " - ", report_week_end)
+report_dates_short <- paste0(lubridate::isoyear(params_meta$report_dates$prev$max),
+                             " Week ", lubridate::isoweek(params_meta$report_dates$prev$max))
 
 report_short_name <- "Demonstration Malaria Report"
 report_title <- paste0("Demonstration Malaria Early Detection and Early Warning Report",
@@ -105,6 +110,8 @@ ew_end <- format(params_meta$report_dates$forecast$max, format = "%b %d, %Y")
 
 #other variables
 num_grps <- length(params_meta$groupings)
+#boolean for if early detection period existed
+early_exists <- !is.na(params_meta$report_dates$ed_sum$min)
 
 @
 
@@ -116,6 +123,8 @@ num_grps <- length(params_meta$groupings)
 \usepackage{titling}
 \setlength{\droptitle}{-15ex} % shift title up
 \setlength{\headheight}{24pt} %added b/c of warnings too small
+
+% \usepackage[title]{appendix}
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -146,17 +155,24 @@ ew_overview_labels <- c("Low: No alerts",
 
 overview_colors <- c("#d7301f", "#fc8d59", "#b8d6fd", "gray98")
 
-summary_map_data <- summary_data %>% 
+#early warning
+summary_map_data <- summary_data %>%
   #get falciparum data
-  filter(respon_var == "pfm") %>% 
+  filter(respon_var == "pfm") %>%
   #Hook into existing short labels for full labels to display in legend
-  mutate(ed_legend = factor(ed_sum_level, levels = levels(ed_sum_level), 
-                            labels = ed_overview_labels, ordered = TRUE),
-         ew_legend = factor(ew_level, levels = levels(ew_level), 
-                            labels = ew_overview_labels, ordered = TRUE),
-         #reverse the factor order for plotting
-         ed_legend = factor(ed_legend, levels = rev(levels(ed_legend))),
-         ew_legend = factor(ew_legend, levels = rev(levels(ew_legend)))) %>% 
+  mutate(ed_legend = if(early_exists){
+    factor(ed_sum_level, levels = levels(ed_sum_level), 
+           labels = ed_overview_labels, ordered = TRUE)
+  } else {
+    #else set label levels from what they would have been
+    factor(ed_sum_level, levels = c("Low", "Medium", "High"),
+           labels = ed_overview_labels, ordered = TRUE)
+  },
+  ew_legend = factor(ew_level, levels = levels(ew_level),
+                     labels = ew_overview_labels, ordered = TRUE),
+  #reverse the factor order for plotting
+  ed_legend = factor(ed_legend, levels = rev(levels(ed_legend))),
+  ew_legend = factor(ew_legend, levels = rev(levels(ew_legend)))) %>%
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
              by = "woreda_name") %>%
@@ -193,12 +209,12 @@ list(#Early Detection
 @
 
 \begin{flushright}
-\noindent Early Detection Period: Last \Sexpr{length(params_meta$report_dates$ed_sum$seq)} weeks of known epidemiological data.
+\noindent Early Detection Period: Last \Sexpr{params_meta$report_settings$ed_summary_period} weeks before forecasting start date.
 
 Date range: \Sexpr{ed_start} through \Sexpr{ed_end}.
 
 \smallskip
-\noindent Early Warning Period: Forecasting period of \Sexpr{length(params_meta$report_dates$forecast$seq)} weeks.
+\noindent Early Warning Period: Forecasting period of \Sexpr{params_meta$report_settings$fc_future_period} weeks.
 
 Date range: \Sexpr{ew_start} through \Sexpr{ew_end}.
 \end{flushright}
@@ -250,8 +266,14 @@ summary_map_data <- summary_data %>%
   #get vivax data
   filter(respon_var == "pv") %>% 
   #Hook into existing short labels for full labels to display in legend
-  mutate(ed_legend = factor(ed_sum_level, levels = levels(ed_sum_level), 
-                            labels = ed_overview_labels, ordered = TRUE),
+  mutate(ed_legend = if(early_exists){
+    factor(ed_sum_level, levels = levels(ed_sum_level), 
+           labels = ed_overview_labels, ordered = TRUE)
+  } else {
+    #else set label levels from what they would have been
+    factor(ed_sum_level, levels = c("Low", "Medium", "High"),
+           labels = ed_overview_labels, ordered = TRUE)
+  },
          ew_legend = factor(ew_level, levels = levels(ew_level), 
                             labels = ew_overview_labels, ordered = TRUE),
          #reverse the factor order for plotting
@@ -294,12 +316,12 @@ list(#Early Detection
 @
 
 \begin{flushright}
-\noindent Early Detection Period: Last \Sexpr{length(params_meta$report_dates$ed_sum$seq)} weeks of known epidemiological data.
+\noindent Early Detection Period: Last \Sexpr{params_meta$report_settings$ed_summary_period} weeks before forecasting start date.
 
 Date range: \Sexpr{ed_start} through \Sexpr{ed_end}.
 
 \smallskip
-\noindent Early Warning Period: Forecasting period of \Sexpr{length(params_meta$report_dates$forecast$seq)} weeks.
+\noindent Early Warning Period: Forecasting period of \Sexpr{params_meta$report_settings$fc_future_period} weeks.
 
 Date range: \Sexpr{ew_start} through \Sexpr{ew_end}.
 \end{flushright}
@@ -370,7 +392,6 @@ am_sf_ref <- am_sf_simpl %>%
   #only label report woredas
   mutate(fill_name = ifelse(as.character(woreda) %in% report_woreda_names,
                             as.character(woreda), NA)) %>% 
-  #get the best points for labeling
   mutate(lon = purrr::map_dbl(geometry, ~st_centroid_within_poly(.x) %>% 
                                 st_coordinates() %>% 
                                 .[ , "X"]),
@@ -417,6 +438,7 @@ base_amhara_plot +
 \newpage
 \section{Woreda Reports} \label{woredas}
 <<run_all_groups, include=FALSE>>=
+
 ## Setup outside of loop - pull out as much as possible to reduce repeating the same calculations (save time)
 #modeling data
 modeling_results_data <- modeling_results_data %>%
@@ -470,7 +492,7 @@ woreda_axis_weeks <- modeling_results_data %>%
 #set up for environmental timeseries
 #to create a disconnected series in observed (where there are interpolated values), there must be NA values
 intp_obs <- environ_timeseries %>% 
-  filter(data_source == "Interpolated") %>% 
+  filter(data_source == "Imputed") %>% 
   mutate(val_epidemiar = NA,
          data_source = "Observed")
 #bind back in
@@ -482,8 +504,8 @@ environ_timeseries <- environ_timeseries %>%
   mutate(environ_var_code = factor(environ_var_code, c("totprec", "lst_day", "ndwi6"), ordered = TRUE)) %>% 
   #desired order for data source, and kludge fixing the ggplot horizontal spacing in legend issue
   mutate(data_source = factor(data_source, 
-                              levels = c("Observed", "Interpolated", "Extended"), 
-                              labels = c("Observed    ", "Interpolated    ", "Extended    "),
+                              levels = c("Observed", "Imputed"), 
+                              labels = c("Observed    ", "Imputed    "),
                               ordered = TRUE)) %>% 
   #one arrange for all
   arrange(environ_var_code, data_source, obs_date)
@@ -522,17 +544,43 @@ for (i in 1:nrow(report_woredas)) {
 \subsection{Overall Incidence}
 <<overall_incidence_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=6, fig.pos='H', out.width='.96\\linewidth'>>=
 
-total <- epi_summary %>%
+fake_cut_levels <- levels(cut(1, c(0, 0.5, 1, Inf), include.lowest = TRUE))
+
+if (early_exists) {
+  total <- epi_summary %>%
   group_by(woreda_name) %>% 
   #shortcut way to get total incidence since ran species separately (but over same time period and population per woreda, so okay to add together)
-  summarize(tot_inc = sum(mean_inc, na.rm = TRUE)) %>% 
-  mutate(plot_inc = cut(tot_inc, c(0, 0.5, 1, Inf), ordered_result = TRUE),
-         plot_inc = factor(plot_inc, levels = rev(levels(plot_inc)))) %>% 
-  #get all woredas, get WID
+  summarize(tot_inc_raw = sum(mean_epi, na.rm = TRUE),
+            #sum(): "For historical reasons, NULL is accepted and treated as if it were integer(0)." 
+            if_all_na = all(is.na(mean_epi))) %>% 
+    #correct if actually all NA
+    mutate(tot_inc = if_else(if_all_na, NA_real_, tot_inc_raw),
+           #cut&factor into categories
+           plot_inc = if_else(if_all_na,
+             #fake cut when NA
+             factor(NA_real_, levels = fake_cut_levels, ordered = TRUE),
+             #when real data
+             cut(tot_inc, c(0, 0.5, 1, Inf), ordered_result = TRUE, include.lowest = TRUE)),
+           plot_inc = factor(plot_inc, levels = rev(levels(plot_inc)))) %>% 
+    #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
              by = "woreda_name") %>%
   #get "No Data" instead of NA for non included woredas
   mutate(plot_inc = fct_explicit_na(plot_inc, na_level = "No Data"))
+} else {
+  #create NA dataset for when no early detection period
+  total <- epi_summary %>% 
+    group_by(woreda_name) %>% 
+    summarize(tot_inc = NA) %>% 
+    #fake cut to get same levels
+    mutate(plot_inc = factor(NA, levels = fake_cut_levels, ordered = TRUE),
+           plot_inc = factor(plot_inc, levels = rev(levels(plot_inc)))) %>% 
+    #get all woredas, get WID
+    right_join(woredas %>% select(woreda_name, WID),
+               by = "woreda_name") %>%
+  #get "No Data" instead of NA for non included woredas
+  mutate(plot_inc = fct_explicit_na(plot_inc, na_level = "No Data"))
+}
 
 
 base_amhara_plot +
@@ -555,6 +603,7 @@ base_amhara_plot +
   theme(plot.subtitle = element_text(margin = margin(b = 15, unit = "pt")))
 
 
+
 @
 
 \newpage
@@ -562,9 +611,20 @@ base_amhara_plot +
 <<species_incidence_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=9.1, fig.pos='H', out.width='.96\\linewidth'>>=
 
 #factor/cut the incidence levels
-species <- epi_summary %>% 
-  mutate(plot_inc = cut(mean_inc, c(0, .25, .5, Inf)), 
+if (early_exists) {
+  species <- epi_summary %>% 
+  mutate(plot_inc = cut(mean_epi, c(0, 0.25, 0.5, Inf), 
+                        ordered_result = TRUE, include.lowest = TRUE), 
          plot_inc = factor(plot_inc, levels = rev(levels(plot_inc))))
+} else {
+  #create NA dataset for when no early detection period
+  species <- epi_summary %>% 
+    #fake cut to get same levels
+    mutate(plot_inc = factor(NA, levels = levels(cut(0, c(0, 0.25, 0.5, Inf), 
+                                                     ordered_result = TRUE, 
+                                                     include.lowest = TRUE))),
+           plot_inc = factor(plot_inc, levels = rev(levels(plot_inc))))
+}
 
 #grab all non-pilot woredas (need a copy for both species)
 notpilot <- woredas %>% 
@@ -615,13 +675,27 @@ base_amhara_plot +
 #captions for all Env Anomalies
 anomalies_caption <- "Anomaly values are calculated as the mean of the observed values\nduring the Early Detection Period minus 15-year means."
 
-rain_anom <- environ_anomalies %>% 
+if (early_exists) {
+  rain_early <- environ_anomalies %>% 
   #filter for rainfall
   filter(environ_var_code == "totprec") %>% 
   #use hard coded cut points
   mutate(legend_cut = cut(anom_ed_mean, breaks = c(-Inf, -5, -1, 1, 5, Inf), ordered_result = TRUE),
          #reverse order for proper plotting
-         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
+         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+} else {
+  #create NA dataset for when no early detection period
+  rain_early <- environ_anomalies %>% 
+    #filter for rainfall
+    filter(environ_var_code == "totprec") %>% 
+    #fake cut to get same levels
+    mutate(legend_cut = factor(NA, levels = levels(cut(0, c(-Inf, -5, -1, 1, 5, Inf), 
+                                                     ordered_result = TRUE))),
+           legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+}
+
+  
+rain_anom <- rain_early %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
              by = "woreda_name") %>%
@@ -650,13 +724,28 @@ base_amhara_plot +
 \newpage
 <<lstd_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=7, fig.pos='H', out.width='.96\\linewidth'>>=
 
-lst_anom <- environ_anomalies %>% 
+if (early_exists) {
+  lst_early <- environ_anomalies %>% 
   #filter for lst day
   filter(environ_var_code == "lst_day") %>% 
   #use hard coded cut points
-  mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 1.2, 0.4, -0.4, -1.2, -Inf), ordered_result = TRUE),
+  mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 1.2, 0.4, -0.4, -1.2, -Inf), 
+                          ordered_result = TRUE),
          #reverse order for proper plotting
-         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
+         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+} else {
+  #create NA dataset for when no early detection period
+  lst_early <- environ_anomalies %>% 
+    #filter for rainfall
+    filter(environ_var_code == "lst_day") %>% 
+    #fake cut to get same levels
+    mutate(legend_cut = factor(NA, levels = levels(cut(0, c(Inf, 1.2, 0.4, -0.4, -1.2, -Inf), 
+                                                     ordered_result = TRUE))),
+           legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+}
+  
+  
+lst_anom <- lst_early %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
              by = "woreda_name") %>%
@@ -684,13 +773,29 @@ base_amhara_plot +
 \newpage
 <<ndwi6_map, warning=FALSE, message=FALSE, fig.width = 6.10236, fig.height=7, fig.pos='H', out.width='.96\\linewidth'>>=
 
-ndwi6_anom <- environ_anomalies %>% 
+if (early_exists) {
+  ndwi6_early <- environ_anomalies %>% 
   #filter for ndwi6
   filter(environ_var_code == "ndwi6") %>% 
   #use hard coded cut points
-  mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 0.008, 0.002, -0.002, -0.008, -Inf), ordered_result = TRUE),
+  mutate(legend_cut = cut(anom_ed_mean, breaks =  c(Inf, 0.008, 0.002, -0.002, -0.008, -Inf), 
+                          ordered_result = TRUE),
          #reverse order for proper plotting
-         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut)))) %>% 
+         legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+} else {
+    #create NA dataset for when no early detection period
+  ndwi6_early <- environ_anomalies %>% 
+    #filter for rainfall
+    filter(environ_var_code == "ndwi6") %>% 
+    #fake cut to get same levels
+    mutate(legend_cut = factor(NA, levels = levels(cut(0, c(Inf, 0.008, 0.002, -0.002, -0.008, -Inf), 
+                                                     ordered_result = TRUE))),
+           legend_cut = factor(legend_cut, levels = rev(levels(legend_cut))))
+
+}
+  
+
+ndwi6_anom <- ndwi6_early %>% 
   #get all woredas, get WID
   right_join(woredas %>% select(woreda_name, WID),
              by = "woreda_name") %>%
@@ -721,7 +826,7 @@ base_amhara_plot +
 The goal of the EPIDEMIA project is to integrate information from malaria surveillance with remotely-sensed environmental data to support the monitoring and forecasting of malaria risk in the Amhara region of Ethiopia. 
 
 \medskip
-This report presents environmental and epidemiological surveillance and forecasting results for \Sexpr{num_grps} woredas in the Amhara region for the past \Sexpr{length(params_meta$report_dates$known$seq)} weeks through \Sexpr{length(params_meta$report_dates$forecast$seq)} weeks forecasted into the future. 
+This report presents environmental and epidemiological surveillance and forecasting results for \Sexpr{num_grps} woredas in the Amhara region for the past \Sexpr{length(params_meta$report_dates$known$seq)} weeks through \Sexpr{params_meta$report_settings$fc_future_period} weeks forecasted into the future. 
 
 \begin{description}
 \item [Alerts] are generated by an anomaly detection algorithm run over the number of cases (observed or estimated, adjusted for population) during the entire time length of the report. We have chosen a variation of the Farrington Improved algorithm, as tests showed that this algorithm performed best for our data. The Farrington method, in various forms, is actively used at some European health centres for surveillance. The Farrington method accounts for seasonality, long-term trends, and past events when calculating the alert thresholds. Alerts are triggered when incidence passes this threshold. Historical alerts for an individual woreda can be viewed in the timeseries control charts appearing on the woreda report page. 
@@ -742,7 +847,7 @@ For the \textit{P. falciparum} and mixed malaria model, the environmental variab
 The individual woreda report displays control charts related to incidence and alerts (top half) and timeseries graphs of the environmental variables (bottom half). 
 
 \smallskip
-There are two control charts, one for \textit{P. falciparum} and mixed malaria, and one for \textit{P. vivax}. Each chart displays the observed incidence of malaria for the previous \Sexpr{length(params_meta$report_dates$known$seq)} weeks of known epidemiological data. Using the models defined in the previous section \ref{overview}, forecasts for both historical values (\Sexpr{length(params_meta$report_dates$known$seq)} weeks) and future estimates (\Sexpr{length(params_meta$report_dates$forecast$seq)} weeks), are shown. Alert thresholds, calculated from the anomaly detection algorithm, are calculated and plotted for the entire report length. If too many of the historical case counts for that time of year have been zero, alert thresholds may not be shown. Early detection alerts (as filled triangles at the base of the graph at that week) are shown both for historical weeks, and in the shaded early detection period (defined as the \Sexpr{length(params_meta$report_dates$ed_sum$seq)} most recent weeks of known epidemiology data).  Early warning alerts (unfilled triangles in the differently shaded early warning period) are shown based on the forecasts. See previous section \ref{overview} for further details on alerts. The vertical line demarks the time point between known data and forecast estimates. 
+There are two control charts, one for \textit{P. falciparum} and mixed malaria, and one for \textit{P. vivax}. Each chart displays the observed incidence of malaria for the previous \Sexpr{length(params_meta$report_dates$known$seq)} weeks of known epidemiological data. Using the models defined in the previous section \ref{overview}, forecasts for both historical values (\Sexpr{length(params_meta$report_dates$known$seq)} weeks) and future estimates (\Sexpr{params_meta$report_settings$fc_future_period} weeks), are shown. Alert thresholds, calculated from the anomaly detection algorithm, are calculated and plotted for the entire report length. If too many of the historical case counts for that time of year have been zero, alert thresholds may not be shown. Early detection alerts (as filled triangles at the base of the graph at that week) are shown both for historical weeks, and in the shaded early detection period (defined as the \Sexpr{length(params_meta$report_dates$ed_sum$seq)} most recent weeks of known epidemiology data).  Early warning alerts (unfilled triangles in the differently shaded early warning period) are shown based on the forecasts. See previous section \ref{overview} for further details on alerts. The vertical line demarks the time point between known data and forecast estimates. 
 
 \smallskip
 The environmental timeseries graphs show the variables associated with \textit{P. falciparum} and mixed malaria: rainfall, daytime Land Surface Temperature (LST), and Normalized Difference Water Index (NDWI6). Observed values (derived from satellite data) are marked as filled circles, and any values that needed to be interpolated (because of missing data due to clouds, etc.) are in unfilled circles. For the future values, shown in unfilled squares, the data has been extended based on the mean of the previous week and on the historical mean for that week of the year. The gray shaded area are the historical environmental covariate values: shown from the 25th to 75th percentile, called the 'Middle 50\%'. All analysis and interpolation of environmental data has been done on a per day basis, and were summarized to a weekly level (sum of rainfal, mean of temperature, etc.) for display. The vertical line demarks the time point between known epidemiological data and forecast estimates, same as in the control charts above. Depending on when the report is run, known environmental data may be used in the forecast portion. 
