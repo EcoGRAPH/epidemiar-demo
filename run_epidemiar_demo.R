@@ -83,7 +83,7 @@ source("data/epidemiar_settings_amhara.R")
 # } else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
 # ##or select specific file
 # #latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
-# #pfm_model_cached <- readRDS(latest_pfm_model)
+# #pfm_report_settings$model_cached <- readRDS(latest_pfm_model)
 
 # #pv
 # all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
@@ -93,7 +93,7 @@ source("data/epidemiar_settings_amhara.R")
 # } else { latest_pv_model <- ""; pv_model_obj <- NULL}
 # ##or select specific model
 # #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
-# #pv_model_cached <- readRDS(latest_pv_model)
+# #pv_report_settings$model_cached <- readRDS(latest_pv_model)
 
 
 
@@ -122,7 +122,6 @@ if (exists("epi_data") & exists("env_data")){
     fc_model_family = fc_model_family,
     #other settings
     report_settings = pfm_report_settings)
-  
   
   # P. vivax
   message("Running P. vivax")
