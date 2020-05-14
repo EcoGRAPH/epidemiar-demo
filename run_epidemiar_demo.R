@@ -69,6 +69,10 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
+# read in forecast and event detection parameters
+source("data/model_parameters_amhara.R")
+
+
 # # If you have created cached models to use instead of regenerating a new model each run:
 # # selects the model per species with latest file created time
 # # pfm
@@ -80,8 +84,6 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 # ##or select specific file
 # #latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
 # #pfm_model_cached <- readRDS(latest_pfm_model)
-#or set as NULL
-latest_pfm_model <- ""; pfm_model_cached <- NULL
 
 # #pv
 # all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
@@ -92,11 +94,7 @@ latest_pfm_model <- ""; pfm_model_cached <- NULL
 # ##or select specific model
 # #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
 # #pv_model_cached <- readRDS(latest_pv_model)
-#or set as NULL
-latest_pv_model <- ""; pv_model_cached <- NULL
 
-# read in forecast and event detection parameters
-source("data/model_parameters_amhara.R")
 
 
 # 3. Run epidemia & create report data ---------------------------------------
@@ -108,51 +106,42 @@ if (exists("epi_data") & exists("env_data")){
   
   # P. falciparum & mixed
   message("Running P. falciparum & mixed")
-  pfm_reportdata <- run_epidemia(epi_data = epi_data, 
-                                 casefield = test_pf_tot, 
-                                 populationfield = pop_at_risk,
-                                 inc_per = inc_per,
-                                 groupfield = woreda_name, 
-                                 week_type = "ISO",
-                                 report_period = report_period, 
-                                 ed_summary_period = ed_summary_period,
-                                 ed_method = ed_method, 
-                                 ed_control = pfm_ed_control,
-                                 env_data = env_data, 
-                                 obsfield = environ_var_code, 
-                                 valuefield = obs_value, 
-                                 forecast_future = forecast_future, 
-                                 fc_control = pfm_fc_control,
-                                 env_ref_data = env_ref_data, 
-                                 env_info = env_info,
-                                 model_cached = pfm_model_cached,
-                                 model_choice = pfm_model_choice)
+  pfm_reportdata <- run_epidemia(
+    #data
+    epi_data = epi_data, 
+    env_data = env_data, 
+    env_ref_data = env_ref_data, 
+    env_info = env_info,
+    #fields
+    casefield = test_pf_tot, 
+    groupfield = woreda_name, 
+    populationfield = pop_at_risk,
+    obsfield = environ_var_code, 
+    valuefield = obs_value,
+    #required settings
+    fc_model_family = fc_model_family,
+    #other settings
+    report_settings = pfm_report_settings)
+  
   
   # P. vivax
   message("Running P. vivax")
-  pv_reportdata <- run_epidemia(epi_data = epi_data, 
-                                casefield = test_pv_only, 
-                                populationfield = pop_at_risk,
-                                inc_per = inc_per,
-                                groupfield = woreda_name, 
-                                week_type = "ISO",
-                                report_period = report_period, 
-                                ed_summary_period = ed_summary_period,
-                                ed_method = ed_method, 
-                                ed_control = pv_ed_control,
-                                env_data = env_data, 
-                                obsfield = environ_var_code, 
-                                valuefield = obs_value, 
-                                forecast_future = forecast_future, 
-                                fc_control = pv_fc_control,
-                                env_ref_data = env_ref_data, 
-                                env_info = env_info,
-                                model_cached = pv_model_cached,
-                                model_choice = pv_model_choice)
-  
-  #append model information to report data metadata
-  pfm_reportdata$params_meta$model_used <- latest_pfm_model
-  pv_reportdata$params_meta$model_used <- latest_pv_model
+  pv_reportdata <- run_epidemia(
+    #data
+    epi_data = epi_data, 
+    env_data = env_data, 
+    env_ref_data = env_ref_data, 
+    env_info = env_info,
+    #fields
+    casefield = test_pv_only, 
+    groupfield = woreda_name, 
+    populationfield = pop_at_risk,
+    obsfield = environ_var_code, 
+    valuefield = obs_value,
+    #required settings
+    fc_model_family = fc_model_family,
+    #other settings
+    report_settings = pv_report_settings)
   
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
@@ -160,21 +149,20 @@ if (exists("epi_data") & exists("env_data")){
 }
 
 
-
 # 4. Merge species data, Save, & Create PDF Report -------------------------------
 
 if (exists("pfm_reportdata") & exists("pv_reportdata")){
   
   #merging pfm & pv data, save out, and create pdf
-  merge_save_report(rpt_data_main = pfm_reportdata, 
+  merge_save_report(rpt_data_main = pfm_reportdata,
                     rpt_data_secd = pv_reportdata,
                     #mark sections as P. falciparum and mixed (pfm) or P. vivax (pv)
                     # used in the epidemia_report_demo.Rnw file for the formatted report
                     var_labs = c("pfm","pv"),
                     #save out the report data in the file that the formatting file reads
                     save_file = "report/report_data.RData",
-                    #save out a second copy of the report data with year and week numbers in the name file
-                    second_save = TRUE, 
+                    #save out a second copy of the report data with year and week numbers in the name
+                    second_save = TRUE,
                     #create the pdf
                     create_report = TRUE,
                     #which Rnw file to use to create pdf
@@ -198,6 +186,7 @@ if (exists("pfm_reportdata") & exists("pv_reportdata")){
 #            report_data_file = "report/report_data.RData",
 #            formatting_file = "epidemia_report_demo.Rnw",
 #            #specific output file name
-#            report_save_file = "report/report_data_2018W52.pdf",
+#            report_save_file = "report/epidemia_report_demo_2018W52.pdf",
 #            show = TRUE)
+
 
