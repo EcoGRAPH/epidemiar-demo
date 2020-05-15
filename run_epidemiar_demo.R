@@ -57,10 +57,10 @@ env_data <- env_data %>%
   filter(obs_date >= env_start_date)
 
 # ## Optional: Date Filtering for running certain week's report
-# req_date <- epidemiar::make_date_yw(year = 2018, week = 52, weekday = 7) #week is always end of the week, 7th day
-# epi_data <- epi_data %>% 
+# req_date <- epidemiar::make_date_yw(year = 2016, week = 24, weekday = 7) #week is always end of the week, 7th day
+# epi_data <- epi_data %>%
 #   filter(obs_date <= req_date)
-# env_data <- env_data %>% 
+# env_data <- env_data %>%
 #   filter(obs_date <= req_date)
 
 # read in climatology / environmental reference data
