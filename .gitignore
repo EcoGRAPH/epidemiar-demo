@@ -12,11 +12,13 @@
 /report/*.log
 /report/*.tex
 /report/*.gz
+/report/*.pdf
 /report/figure/*
 /validation/*.log
 /validation/*.tex
 /validation/*.gz
 /validation/figure/*
+
 
 # log files
 *.log
