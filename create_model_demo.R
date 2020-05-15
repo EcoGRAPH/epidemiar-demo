@@ -73,7 +73,7 @@ if (exists("epi_data") & exists("env_data")){
   
   # P. falciparum & mixed
   message("Running P. falciparum & mixed")
-  pfm_reportdata <- run_epidemia(
+  pfm_model <- run_epidemia(
     #data
     epi_data = epi_data, 
     env_data = env_data, 
@@ -92,7 +92,7 @@ if (exists("epi_data") & exists("env_data")){
   
   # P. vivax
   message("Running P. vivax")
-  pv_reportdata <- run_epidemia(
+  pv_model <- run_epidemia(
     #data
     epi_data = epi_data, 
     env_data = env_data, 
