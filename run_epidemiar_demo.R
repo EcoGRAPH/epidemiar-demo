@@ -56,7 +56,7 @@ env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #w
 env_data <- env_data %>%
   filter(obs_date >= env_start_date)
 
-# ## Optional: Date Filtering for running certain week's report
+# ## OPTIONAL: Date Filtering for running certain week's report
 # req_date <- epidemiar::make_date_yw(year = 2016, week = 24, weekday = 7) #week is always end of the week, 7th day
 # epi_data <- epi_data %>%
 #   filter(obs_date <= req_date)
@@ -73,24 +73,23 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 source("data/epidemiar_settings_amhara.R")
 
 
-# # If you have created cached models to use instead of regenerating a new model each run:
+# # OPTIONAL: If you have created cached models to use instead of generating a new model:
 # # selects the model per species with latest file created time
 # # pfm
 # all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
 # if (nrow(all_pfm_models) > 0){
 #   latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
 #   pfm_model_cached <- readRDS(latest_pfm_model)
-# } else { latest_pfm_model <- ""; pfm_model_obj <- NULL }
+# }
 # ##or select specific file
 # #latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
 # #pfm_report_settings$model_cached <- readRDS(latest_pfm_model)
-
 # #pv
 # all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
 # if (nrow(all_pv_models) > 0){
 #   latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
 #   pv_model_cached <- readRDS(latest_pv_model)
-# } else { latest_pv_model <- ""; pv_model_obj <- NULL}
+# }
 # ##or select specific model
 # #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
 # #pv_report_settings$model_cached <- readRDS(latest_pv_model)
@@ -141,6 +140,15 @@ if (exists("epi_data") & exists("env_data")){
     fc_model_family = fc_model_family,
     #other settings
     report_settings = pv_report_settings)
+  
+  #if using cached models:
+  #append model information to report data metadata
+  if (exists('pfm_model_cached')){
+    pfm_reportdata$params_meta$model_used <- latest_pfm_model
+  }
+  if (exists('pv_model_cached')){
+    pv_reportdata$params_meta$model_used <- latest_pv_model
+  }
   
 } else {
   message("Error: Epidemiological and/or environmental datasets are missing.
