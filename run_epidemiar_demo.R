@@ -39,9 +39,9 @@ source("R/report_save_create_helpers.R")
 # 2. Reading in the Data -----------------------------------------------------
 
 # read in woreda metadata
-report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>% 
-  dplyr::filter(report == 1)
-  #Note: report woredas must have sufficient epi data, env data, and model cluster information, in appropriate files
+report_woredas <- read_csv("data/amhara_woredas.csv") %>% 
+  filter(report == 1)
+#Note: report woredas must have sufficient epi data, env data, and model cluster information, in appropriate files
 
 # read & process case data needed for report
 epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
@@ -56,12 +56,18 @@ env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #w
 env_data <- env_data %>%
   filter(obs_date >= env_start_date)
 
-# ## OPTIONAL: Date Filtering for running certain week's report
+# ## OPTIONAL: Date Filtering for running certain (past) week's report
 # req_date <- epidemiar::make_date_yw(year = 2016, week = 24, weekday = 7) #week is always end of the week, 7th day
 # epi_data <- epi_data %>%
 #   filter(obs_date <= req_date)
 # env_data <- env_data %>%
 #   filter(obs_date <= req_date)
+
+# ## OPTIONAL: If instead the forecast should be beyond known epi data,
+# then you can set the forecast start date directly
+# pfm_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
+# pv_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
+
 
 # read in climatology / environmental reference data
 env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())

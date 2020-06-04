@@ -58,8 +58,8 @@ source("R/report_save_create_helpers.R")
 # 2. Reading in the Data -----------------------------------------------------
 
 # read in woreda metadata
-report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>% 
-  dplyr::filter(report == 1)
+report_woredas <- read_csv("data/amhara_woredas.csv") %>% 
+  filter(report == 1)
 #Note: report woredas must have sufficient epi data, env data, and model cluster information, in appropriate files
 
 # read & process case data needed for report
@@ -107,6 +107,13 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
       filter(obs_date <= this_week)
     this_env_data <- env_data_full %>%
       filter(obs_date <= this_week)
+    
+    #if report in past, this will automatically happen because of epi data end
+    # if forecasting past existing epi data, need to set specifically 
+    this_fc_start_date <- this_week + lubridate::weeks(1)
+    #update report_settings (will overwrite each week)
+    pfm_report_settings$fc_start_date <- this_fc_start_date
+    pv_report_settings$fc_start_date <- this_fc_start_date
     
     # P. falciparum & mixed
     message("Running P. falciparum & mixed")

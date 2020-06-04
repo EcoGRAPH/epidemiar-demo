@@ -1,6 +1,6 @@
 <<set_default_opts, echo=FALSE>>=
 
-## Demo Amhara-malaria version
+## Demo malaria version
 
 opts_chunk$set(echo = FALSE, dev = "png", dpi=150, concordance=TRUE)
 @
@@ -9,7 +9,7 @@ opts_chunk$set(echo = FALSE, dev = "png", dpi=150, concordance=TRUE)
 if (!require("pacman")) install.packages("pacman")
 library(pacman)
 pacman::p_load(knitr, tinytex,  
-               readxl, magrittr, dplyr, tidyr, lubridate,  
+               readxl, magrittr, dplyr, tidyr, lubridate, readr, 
                stringr, forcats, broom, xtable, scales, grid, gridExtra, 
                ggplot2, 
                #sp, rgdal, rgeos, 
@@ -29,7 +29,6 @@ source("../R/arrange_and_draw.R")
 load("../data/am_sf.RData")
 load("../data/am_sf_simpl.RData")
 
-
 #zone level for overlay
 # Note: do NOT do this on simplified set, will introduce a lot of artifacts
 zones_am <- am_sf %>% 
@@ -37,24 +36,18 @@ zones_am <- am_sf %>%
   summarize(geometry = sf::st_union(geometry)) %>% 
   ungroup
 
-
 #read woreda information (metadata) file
-woredas <- read_xlsx("../data/woredas.xlsx", na = "NA") %>%
-  #NOTE: "WID" correctly matched shapefile wid (after class conversion if necessary)
-  # However WID is not unique. Unwanted entries (hospitals in that woreda, etc)
-  # can be removed by removing entries with id of NA.
-  #Note id is very similar to WID, but NOT the same: see Shewa Robit, Kewet, Kobo Town, Raya Kobo
-  filter(!is.na(id))
-
+woredas <- read_csv("../data/amhara_woredas.csv") 
 
 #woredas used in report data
 report_woreda_names <- params_meta$groupings
 
 #woreda info on used woredas
 report_woredas <- tibble(report_woreda_names) %>% 
-  left_join(woredas %>% select(woreda_name, WID, zone_name),
+  left_join(woredas %>% select(woreda_name, WID, zone),
             by = c("report_woreda_names" = "woreda_name")) %>% 
-  rename(woreda_name = report_woreda_names)
+  rename(woreda_name = report_woreda_names) %>% 
+  arrange(zone, woreda_name)
 
 #Base plotting
 #often used themes (originally from ggplot_themes)
@@ -228,15 +221,15 @@ summary_alerts <- summary_data %>%
   #get falciparum data
   filter(respon_var == "pfm") %>% 
   left_join(report_woredas %>% 
-              select(woreda_name, zone_name),
+              select(woreda_name, zone),
             by = "woreda_name")
 
 sum_tbl <- summary_alerts %>% 
   filter(!ed_sum_level == "Low" | !ew_level == "Low") %>% 
   mutate(Both = ifelse(!ed_sum_level == "Low" & !ew_level == "Low", "Yes", "-")) %>% 
-  #arrange(desc(Both), desc(ed_sum_level), desc(ew_level), zone_name, woreda_name) %>% 
-  arrange(zone_name, woreda_name) %>% 
-  select(Zone = zone_name,
+  #arrange(desc(Both), desc(ed_sum_level), desc(ew_level), zone, woreda_name) %>% 
+  arrange(zone, woreda_name) %>% 
+  select(Zone = zone,
          Woreda = woreda_name,
          'Early Detection Alert' = ed_sum_level,
          'Early Warning Alert' = ew_level,
@@ -336,15 +329,14 @@ summary_alerts <- summary_data %>%
   filter(respon_var == "pv") %>% 
   mutate(woreda_name = as.character(woreda_name)) %>% 
   left_join(report_woredas %>% 
-              select(woreda_name, zone_name),
+              select(woreda_name, zone),
             by = "woreda_name")
 
 sum_tbl <- summary_alerts %>% 
   filter(!ed_sum_level == "Low" | !ew_level == "Low") %>% 
   mutate(Both = ifelse(!ed_sum_level == "Low" & !ew_level == "Low", "Yes", "-")) %>% 
-  #arrange(desc(Both), desc(ed_sum_level), desc(ew_level), zone_name, woreda_name) %>% 
-  arrange(zone_name, woreda_name) %>% 
-  select(Zone = zone_name,
+  arrange(zone, woreda_name) %>% 
+  select(Zone = zone,
          Woreda = woreda_name,
          'Early Detection Alert' = ed_sum_level,
          'Early Warning Alert' = ew_level,
@@ -392,6 +384,7 @@ am_sf_ref <- am_sf_simpl %>%
   #only label report woredas
   mutate(fill_name = ifelse(as.character(woreda) %in% report_woreda_names,
                             as.character(woreda), NA)) %>% 
+  #get the best points for labeling
   mutate(lon = purrr::map_dbl(geometry, ~st_centroid_within_poly(.x) %>% 
                                 st_coordinates() %>% 
                                 .[ , "X"]),
@@ -455,11 +448,14 @@ modeling_results_data <- modeling_results_data %>%
   #extra spacing added as a hack to increase distance between items in legend
   #known issue in ggplot that margin doesn't do what it should
   #https://github.com/tidyverse/ggplot2/issues/1502
+  # now appears to be fixed, so removing extra spaces
   mutate(lab = factor(lab,
                       levels = c("Early Detection Alert", "Early Warning Alert", "Alert Threshold", 
                                  "Forecast Trend", "Observed"),
-                      labels = c("Early Detection Alert ", "Early Warning Alert ", "Alert Threshold ", 
-                                 "Forecast Trend ", "Observed "),
+                      #labels = c("Early Detection Alert ", "Early Warning Alert ", "Alert Threshold ", 
+                      #           "Forecast Trend ", "Observed "),
+                      labels = c("Early Detection Alert", "Early Warning Alert", "Alert Threshold", 
+                                 "Forecast Trend", "Observed"),
                       #put in correct order
                       ordered = TRUE)) 
 
@@ -517,13 +513,13 @@ environ_labels <- setNames(env_labels_tbl$report_label, env_labels_tbl$environ_v
 
 #order by zones
 report_woredas <- report_woredas %>% 
-  arrange(zone_name, woreda_name)
+  arrange(zone, woreda_name)
 
 out = vector('list', nrow(report_woredas))
 
 for (i in 1:nrow(report_woredas)) {
   this_woreda <- report_woredas$woreda_name[i]
-  this_zone <- report_woredas$zone_name[i]
+  this_zone <- report_woredas$zone[i]
   this_WID = report_woredas$WID[i]
   #filter data to woreda
   this_modeling_data <- modeling_results_data %>%
