@@ -13,8 +13,8 @@
 # They are useful if you need to step through each and every code line internally
 # You run debugonce(function) and then the next time you run the function 
 # it'll jump into debug mode
-# debugonce(epidemiar::run_epidemia)
-# debugonce(clusterapply::batch_bam)
+#debugonce(epidemiar::run_epidemia)
+#debugonce(clusterapply::batch_bam)
 
 # 1. Libraries & Functions ------------------------------------------------------
 
@@ -57,6 +57,8 @@ env_data <- corral_environment(report_woredas = report_woredas)
 
 ## <<RAM>> after running the corral_environment() once and making sure it works
 # you can switch to the below import instead, which will be a LOT faster
+# the demo version has a lot of historical data because I also show how to build
+# a climatology/reference dataset in the documentation
 #env_data <- readRDS("data_environmental/env_data_2012_2018.RDS")
 
 
