@@ -64,18 +64,6 @@ corral_environment <- function(report_woredas){
 
   message("Reading environmental data...")
     
-  if (file.exists("data_environmental/env_data_20120101_20180930.RDS")){
-    # Read original data from Eastweb, which has been altered to fit GEE standard
-    env_data_old <- readRDS("data_environmental/env_data_20120101_20180930.RDS") %>% 
-      #drop unneeded columns, prepping for eventual appending with GEE data
-      dplyr::select(-woreda_name, -old_env_var_code, -environ_var_id) %>% 
-      #set a data time of 2001-01-01 -- this way, any values collected for the
-      #2001-20180930 time frame collected later (e.g. with GEE instead) will use
-      #that data instead
-      dplyr::mutate(data_time = as.POSIXct("2001-01-01 00:00:00"))
-  }
-  
-  
   # GEE data
   #get list of csv files
   env_csv_files_raw <- list.files("data_environmental/", full.names = TRUE, pattern="*.csv$")
@@ -100,13 +88,6 @@ corral_environment <- function(report_woredas){
   env_data <- dplyr::bind_rows(env_data_list)
   
   message("Processing environmental data...")
-  
-  #If old data exists, append
-  if (file.exists("data_environmental/env_data_20120101_20180930.RDS")){
-    # Append old and GEE data
-    env_data <- dplyr::bind_rows(env_data_old, env_data) %>% 
-      dplyr::arrange(WID, obs_date, environ_var_code)
-  }
   
   # To reduce processing time, filter only report woredas here
   env_data <- env_data %>% 
@@ -370,7 +351,7 @@ corral_epidemiological <- function(report_woreda_names){
   
   if (num_epi_missing > 0) {
     readr::write_csv(epi_miss %>% tidyr::unnest(), "log_missing_report_epidemiology.csv")
-    stop("Some dates in the epidemiological data are missing. Check error file 'log_missing_report_epidemiology.csv' for details.")
+    warning("Some dates in the epidemiological data are missing. Check error file 'log_missing_report_epidemiology.csv' for details.")
   }
   
   
