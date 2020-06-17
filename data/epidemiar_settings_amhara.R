@@ -62,8 +62,9 @@ pfm_fc_clusters <- readr::read_csv("data/falciparum_model_clusters.csv", col_typ
 pv_fc_clusters <- readr::read_csv("data/vivax_model_clusters.csv", col_types = readr::cols())
 
 #get info for parallel processing
-#default value is 1 for 1 core machines, 2 for multi-core (testing shows no additional value past 2) 
-fc_nthreads <- ifelse(parallel::detectCores(logical=FALSE) > 1, 2, 1)
+fc_ncores <- max(parallel::detectCores(logical=FALSE),
+                 1,
+                 na.rm = TRUE)
 
 #Include seasonal cyclical in modeling? 
 #YES, for cyclicals in poisson
