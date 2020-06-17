@@ -28,7 +28,7 @@ report_inc_per <- 1000
 epi_date_type <- "weekISO"
 
 #interpolate epi data?
-epi_interpolate <- FALSE
+epi_interpolate <- TRUE
 
 #model runs and objects
 model_run <- FALSE
