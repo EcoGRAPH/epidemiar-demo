@@ -8,6 +8,7 @@ merge_save_report <- function(rpt_data_main = NULL,
                               second_save = TRUE,
                               create_report = TRUE,
                               formatting_file = "epidemia_report_demo.Rnw",
+                              file_name_postfix = "",
                               show_report = TRUE){
   #accept epidemia outputs for 2 report_data over same time range and merges
   #using main results to drive which environmental variables to show
@@ -87,7 +88,8 @@ merge_save_report <- function(rpt_data_main = NULL,
   #Optional second save
   if (second_save){
     save_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
-                            "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max))
+                            "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max),
+                            "_", file_name_postfix)
     save_name <- tools::file_path_sans_ext(save_file)
     save_ext <- file_ext(save_file)
     second_save_file <- paste0(save_name, save_filetail, ".", save_ext)
@@ -104,7 +106,8 @@ merge_save_report <- function(rpt_data_main = NULL,
   if (create_report){
     #generate file name
     report_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
-                              "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max))
+                              "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max),
+                              "_", file_name_postfix)
     report_output_file <- paste0("report/",
                                  tools::file_path_sans_ext(formatting_file),
                                  report_filetail, ".pdf")
@@ -129,6 +132,7 @@ create_pdf <- function(new_data = "report/report_data.RData",
                        #do not include directory, if inside the working_dir
                        formatting_file = "epidemia_report_demo.Rnw",
                        report_save_file = NULL,
+                       file_name_postfix = "",
                        show = TRUE,
                        skip_check = FALSE){
   
@@ -188,7 +192,8 @@ create_pdf <- function(new_data = "report/report_data.RData",
 
 # Function to save the validation report data (per species, not combined like forecast report), 
 #  generates the pdf report and saves it
-create_validation_report <- function(val_results){
+create_validation_report <- function(val_results, 
+                                     formatting_file = NULL){
   #create appropriate file names
   filetail <- paste0("_", val_results$metadata$casefield, 
                      "_", lubridate::isoyear(val_results$metadata$date_start), 
@@ -203,6 +208,9 @@ create_validation_report <- function(val_results){
   report_output_file <- paste0(tools::file_path_sans_ext(valid_savefile),
                                ".pdf")
   
+  if (is.null(formatting_file)){
+    formatting_file <- "epidemia_validation_demo.Rnw"
+  }
   
   #save the RDS data
   saveRDS(val_results, valid_savefile)
@@ -212,7 +220,7 @@ create_validation_report <- function(val_results){
   create_pdf(new_data = valid_savefile,
              report_data_file = file.path("validation", "validation_report_data.RDS"),
              working_dir = "validation",
-             formatting_file = "epidemia_validation_demo.Rnw",
+             formatting_file = formatting_file,
              report_save_file = report_output_file,
              show = TRUE,
              skip_check = TRUE)
