@@ -393,6 +393,7 @@ long <- bind_rows(obs, fcs) %>%
   left_join(val$metadata$report_settings$fc_clusters,
             by = "woreda_name")
 
+tsa <- val$metadata$timesteps_ahead
 
 #loop all plotting
 
@@ -416,8 +417,8 @@ for (w in 1:nrow(report_woredas)){
     ylab("Cases") +
     theme_bw() +
     #format geom lines, black for observed
-    scale_color_manual("Forecast Series", values = c("black", viridis(12))) +
-    scale_size_manual("Forecast Series", values = c(1, rep(0.6, 12))) +
+    scale_color_manual("Forecast Series", values = c("black", viridis(tsa))) +
+    scale_size_manual("Forecast Series", values = c(1, rep(0.6, tsa))) +
     #reduce legend size
     theme(legend.title = element_text(size = 8), 
                legend.text = element_text(size = 8))
