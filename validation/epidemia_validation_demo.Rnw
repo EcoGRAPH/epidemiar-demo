@@ -12,8 +12,11 @@ library(pacman)
 pacman::p_load(knitr, tinytex,  
                readxl, magrittr, dplyr, tidyr, lubridate, 
                xtable, readr, 
-               ggplot2, scales, grid, sf) 
+               ggplot2, scales, grid, sf, viridis) 
 library(epidemiar)
+
+#due to experimental dplyr::summarise() parameter
+options(dplyr.summarise.inform=F)
 
 #load report data
 val <- readRDS("validation_report_data.RDS")
@@ -100,7 +103,6 @@ report_title <- paste0("Demonstration Model Validation for Malaria Forecasting",
 report_rhead <- paste("Demo Validation for", disease_name_short, 
                       ":", report_date_range_short)
 
-
 date_created <- format(val$metadata$date_created, format = "%d %b %Y")
 
 @
@@ -176,7 +178,7 @@ ggplot() +
 @
 
 \vspace{\fill}
-\noindent Skill scores show the improvement (with values greater than 0) of the forecast model (\Sexpr{val$metadata$fc_model_family}) over simple naive models. There are three accuracy statistics used: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), an a R2 (variance explained). These statstics are compared against the naive models to give the skill scores. The boxplot shows the concordance of skill among the three statistics. Higher values (0 to 1) indicate the greater skill of the forecast models over the simple naive models. 
+\noindent Skill scores show the improvement (with values greater than 0) of the forecast model (\Sexpr{val$metadata$fc_model_family}) over simple naive models. There are three accuracy statistics used: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), an a R2 (variance explained). These statistics are compared against the naive models to give the skill scores. The boxplot shows the concordance of skill among the three statistics. Higher values (0 to 1) indicate the greater skill of the forecast models over the simple naive models. 
 
 \medskip
 \noindent The x-axis is the number of weeks being forecasted into the future. The validation was run with the assumption that there is a reporting lag of \Sexpr{val$metadata$reporting_lag} weeks. 
@@ -359,6 +361,74 @@ print(xtable(stats_table, digits = c(0, 0, 1, 1, 2)),
 \vspace{\fill}
 
 \noindent This table contains the raw accuracy statistic values for the forecast model overall for each week forecast into the future.  There are three accuracy statistics used: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), an a R2 (variance explained). The validation was run with the assumption that there is a reporting lag of \Sexpr{val$metadata$reporting_lag} weeks. 
+
+
+\newpage
+\section{Week-ahead Graphs}
+\noindent These graphs show the observed case counts and each of the week-ahead predictions as a series (i.e. all one-week ahead predictions are a series, all two-week, etc.) for the forecast model ((\Sexpr{val$metadata$fc_model_family})). These graphs can be used to visualize how the predictions are behaving n-number of weeks ahead of the target forecast week.
+\smallskip
+
+<<weekahead_woreda, warning=FALSE, message=FALSE, fig.width = 6, fig.height=4.6>>=
+
+perweek <- val$validations[[1]]$validation_perweek %>% 
+  select(woreda_name, obs_date, obs, value, timestep_ahead) %>% 
+  arrange(woreda_name, obs_date)
+#need to make obs a series, easier to do in 2 pieces than try to figure out if pivot_longer can deal with half-long data
+obs <- perweek %>% 
+  select(woreda_name, obs_date, obs) %>% 
+  mutate(series = "Observed") %>% 
+  rename(value = obs) %>% 
+  distinct()
+fcs <- perweek %>% 
+  select(woreda_name, obs_date, value, timestep_ahead) %>% 
+  mutate(series = paste0(timestep_ahead, "-week ahead")) %>% 
+  select(-timestep_ahead)
+
+long <- bind_rows(obs, fcs) %>% 
+  arrange(woreda_name, obs_date) %>% 
+  mutate(series = forcats::as_factor(series)) %>% 
+  #date week numbers
+  epidemiar::add_datefields() %>% 
+  #add cluster id
+  left_join(val$metadata$report_settings$fc_clusters,
+            by = "woreda_name")
+
+
+#loop all plotting
+
+for (w in 1:nrow(report_woredas)){
+  
+  this_woreda <- report_woredas[[w, "woreda_name"]]
+  this_zone <- report_woredas[[w, "zone"]]
+  this_title <- paste(this_zone, ":", this_woreda)
+  
+  this_data <- long %>% filter(woreda_name == this_woreda)
+  this_subtitle <- paste("Cluster :", unique(this_data$cluster_id))
+
+  wa_plot <- ggplot() +
+    #per week and observed lines
+    geom_line(data = this_data, aes(x = week_epidemiar, y = value, 
+                                    color = series, size = series)) +
+    #title with zone and woreda
+    labs(title = this_title,
+         subtitle = this_subtitle) +
+    xlab("Week") +
+    ylab("Cases") +
+    theme_bw() +
+    #format geom lines, black for observed
+    scale_color_manual("Forecast Series", values = c("black", viridis(12))) +
+    scale_size_manual("Forecast Series", values = c(1, rep(0.6, 12))) +
+    #reduce legend size
+    theme(legend.title = element_text(size = 8), 
+               legend.text = element_text(size = 8))
+  
+  print(wa_plot)
+
+}
+
+@
+
+
 
 
 \end{document}
