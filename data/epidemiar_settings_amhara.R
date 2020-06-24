@@ -89,6 +89,7 @@ pfm_ed_control <- list(
   trend = TRUE, pThresholdTrend = 0,
   populationOffset = TRUE,
   noPeriods = 12, pastWeeksNotIncluded = 4,
+  limit54=c(1,4), 
   thresholdMethod = "nbPlugin")
 
 pv_ed_control <- list(
@@ -96,6 +97,7 @@ pv_ed_control <- list(
   trend = TRUE, pThresholdTrend = 0,
   populationOffset = TRUE,
   noPeriods = 10, pastWeeksNotIncluded = 4,
+  limit54 = c(1,4), 
   thresholdMethod = "nbPlugin")
 
 
