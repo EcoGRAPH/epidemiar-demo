@@ -54,6 +54,14 @@ env_anomalies <- TRUE
 #Model choice and parameters
 fc_model_family <- "poisson()"
 
+#Spline choice for long-term trend and lagged environmental variables
+#fc_splines <- "modbs" #modified b-splines, faster but not as good as thin plate
+fc_splines <- "tp" #requires clusterapply companion package
+
+#Include seasonal cyclical in modeling? 
+#Yes, for seasonality in our Poisson model
+fc_cyclicals <- TRUE
+
 #forecast 8 weeks into the future
 fc_future_period <- 8
 
@@ -61,14 +69,10 @@ fc_future_period <- 8
 pfm_fc_clusters <- readr::read_csv("data/falciparum_model_clusters.csv", col_types = readr::cols())
 pv_fc_clusters <- readr::read_csv("data/vivax_model_clusters.csv", col_types = readr::cols())
 
-#get info for parallel processing
+#info for parallel processing on the machine the script is running on
 fc_ncores <- max(parallel::detectCores(logical=FALSE),
                  1,
                  na.rm = TRUE)
-
-#Include seasonal cyclical in modeling? 
-#YES, for cyclicals in poisson
-fc_cyclicals <- TRUE
 
 
 # 4. Set up early detection controls -------------------------------
@@ -106,10 +110,11 @@ pfm_report_settings <- epidemiar::create_named_list(report_period,
                                                     env_var = pfm_env_var,
                                                     env_lag_length,
                                                     env_anomalies,
-                                                    fc_clusters = pfm_fc_clusters,
-                                                    fc_future_period,
+                                                    fc_splines,
                                                     fc_cyclicals,
-                                                    fc_nthreads,
+                                                    fc_future_period,
+                                                    fc_clusters = pfm_fc_clusters,
+                                                    fc_ncores,
                                                     ed_summary_period,
                                                     ed_method,
                                                     ed_control = pfm_ed_control)
@@ -123,10 +128,11 @@ pv_report_settings <- epidemiar::create_named_list(report_period,
                                                    env_var = pv_env_var,
                                                    env_lag_length,
                                                    env_anomalies,
-                                                   fc_clusters = pv_fc_clusters,
-                                                   fc_future_period,
+                                                   fc_splines,
                                                    fc_cyclicals,
-                                                   fc_nthreads,
+                                                   fc_future_period,
+                                                   fc_clusters = pv_fc_clusters,
+                                                   fc_ncores,
                                                    ed_summary_period,
                                                    ed_method,
                                                    ed_control = pv_ed_control)
