@@ -66,8 +66,8 @@ source("R/report_save_create_helpers.R")
 # 3. Reading in the Data -----------------------------------------------------
 
 # read in woreda metadata
-report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>% 
-  dplyr::filter(report == 1)
+report_woredas <- read_csv("data/amhara_woredas.csv") %>% 
+  filter(report == 1)
 
 # read & process case data needed for report
 epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_name)
