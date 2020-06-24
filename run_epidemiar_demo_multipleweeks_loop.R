@@ -19,14 +19,14 @@
 # Set the loop variable to TRUE, and change the isoyear and isoweeks wanted.
 #
 # This is different from just adjusting the fc_start_date, because this censors
-# epidemiological and environmental data as well, mimicing what data would be
+# epidemiological and environmental data as well, mimicking what data would be
 # available at the time, rather than changing when forecasting started but using
 # all available data.
 
 
 loop <- TRUE
 wk_list <- c(epidemiar::make_date_yw(year = 2016, week = c(23:24), weekday = 7),
-             epidemiar::make_date_yw(year = 2017, week = c(37:38), weekday = 7))
+             epidemiar::make_date_yw(year = 2017, week = c(37:40), weekday = 7))
 
 
 # 1. Libraries & Functions ------------------------------------------------------
@@ -86,7 +86,6 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
 source("data/epidemiar_settings_amhara.R")
-
 
 
 # 3-4B. Loop run epidemiar ------------------------------------------------
