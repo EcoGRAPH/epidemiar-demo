@@ -6,15 +6,14 @@ author: |
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
 output:
-  html_document:
-    toc: yes
-    toc_depth: '2'
-    df_print: paged
   pdf_document:
     toc: yes
     toc_depth: 2
     number_sections: yes
-subtitle: null
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
 urlcolor: blue
 ---
 
@@ -115,6 +114,16 @@ knitr::include_graphics("figs/github_epidemiar_release_v1.1.1.JPG")
 knitr::include_graphics("figs/rstudio_install_source.JPG")
 ```
 
+### clusterapply package {#clusterapply-package-install}
+
+The thin plate spline options in epidemiar are supported by a new EPIDEMIA system package, clusterapply. 
+
+From https://github.com/EcoGRAPH/clusterapply/releases/latest you can either use the suggested remotes::install_github() installation:
+```{r, eval = FALSE}
+remotes::install_github("ecograph/clusterapply@v1.0.0", build = TRUE, 
+                        build_opts = c("--no-resave-data", "--no-manual"))
+```
+or download the binary or source files listed under the "Assets" and install from those. 
 
 
 ### epidemiar-demo project {#epidemiar-demo-project}
