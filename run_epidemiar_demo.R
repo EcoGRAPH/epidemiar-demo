@@ -59,6 +59,15 @@ env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #w
 env_data <- env_data %>%
   filter(obs_date >= env_start_date)
 
+# read in climatology / environmental reference data
+env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
+
+# read in environmental info file
+env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
+
+# read in forecast and event detection parameters
+source("data/epidemiar_settings_amhara.R")
+
 # ## OPTIONAL: Date Filtering for running certain (past) week's report
 # req_date <- epidemiar::make_date_yw(year = 2016, week = 24, weekday = 7) #week is always end of the week, 7th day
 # epi_data <- epi_data %>%
@@ -71,17 +80,6 @@ env_data <- env_data %>%
 # pfm_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
 # pv_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
 
-
-# read in climatology / environmental reference data
-env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
-
-# read in environmental info file
-env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
-
-# read in forecast and event detection parameters
-source("data/epidemiar_settings_amhara.R")
-
-
 # # OPTIONAL: If you have created cached models to use instead of generating a new model:
 # # selects the model per species with latest file created time
 # # pfm
@@ -92,7 +90,7 @@ source("data/epidemiar_settings_amhara.R")
 # }
 # ##or select specific file
 # #latest_pfm_model <- "data/pfm_model_xxxxxxx.RDS"
-# #pfm_report_settings$model_cached <- readRDS(latest_pfm_model)
+# pfm_report_settings$model_cached <- readRDS(latest_pfm_model)
 # #pv
 # all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
 # if (nrow(all_pv_models) > 0){
@@ -101,7 +99,7 @@ source("data/epidemiar_settings_amhara.R")
 # }
 # ##or select specific model
 # #latest_pv_model <- "data/pv_model_xxxxxxxx.RDS"
-# #pv_report_settings$model_cached <- readRDS(latest_pv_model)
+# pv_report_settings$model_cached <- readRDS(latest_pv_model)
 
 
 
