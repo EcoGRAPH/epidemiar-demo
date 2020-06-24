@@ -30,6 +30,9 @@ epi_date_type <- "weekISO"
 #interpolate epi data?
 epi_interpolate <- TRUE
 
+#use a transformation on the epi data for modeling?
+epi_transform <- "none"
+
 #model runs and objects
 model_run <- FALSE
 model_cached <- NULL

@@ -293,11 +293,16 @@ report_inc_per <- 1000
 
 The epidemiological data is collected based on WHO (ISO-8601 standard) epidemiological weeks.
 
+We do not use any transformation of the case counts for modeling, but there is an option for a "log_plus_one" transformation (and back-transformation), if relevant for certain model families. 
+
 The Amhara dataset had few missing values, which we linearly interpolate. If there are large numbers of missing values, we recommend other methods of interpolation before feeding the data to run_epidemia. 
 
 ```{r epi-general}
 #date type in epidemiological data
 epi_date_type <- "weekISO"
+
+#use a transformation on the epi data for modeling?
+epi_transform <- "none"
 
 #interpolate epi data?
 epi_interpolate <- TRUE
