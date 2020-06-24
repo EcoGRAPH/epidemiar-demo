@@ -37,8 +37,10 @@ options(dplyr.summarise.inform=F)
 # 2. Reading in the Data -----------------------------------------------------
 
 # read in woreda metadata
-report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>% 
-  dplyr::filter(report == 1)
+report_woredas <- read_csv("data/amhara_woredas.csv") %>% 
+  filter(report == 1)
+# report_woredas <- readxl::read_xlsx("data/woredas.xlsx", na = "NA") %>% 
+#   dplyr::filter(report == 1)
 #Note: report woredas must have sufficient epi data, env data, and model cluster information, in appropriate files
 
 # read & process case data needed for report
@@ -50,19 +52,19 @@ env_data <- corral_environment(report_woredas = report_woredas)
 ## Optional: For slight speed increase, 
 # date filtering to remove older environmental data.
 # older env data was included to demo epidemiar::env_daily_to_ref() function.
-env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #week is always end of the week, 7th day
+#week is always end of the week, 7th day
+env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) 
 env_data <- env_data %>%
-  filter(obs_date >= env_start_date)
+filter(obs_date >= env_start_date)
 
 # read in climatology / environmental reference data
-env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
+env_ref_data <- readr::read_csv("data/env_ref_data_2002_2018.csv", col_types = readr::cols())
 
 # read in environmental info file
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
-# read in forecast and event detection parameters
+# read in forecasting and report settings file
 source("data/epidemiar_settings_amhara.R")
-
 
 # 3. Run epidemia & create model only ---------------------------------------
 
