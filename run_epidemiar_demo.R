@@ -36,6 +36,9 @@ library(epidemiar)
 source("R/data_corrals.R") 
 source("R/report_save_create_helpers.R")
 
+#due to experimental dplyr::summarise() parameter
+options(dplyr.summarise.inform=F)
+
 # 2. Reading in the Data -----------------------------------------------------
 
 # read in woreda metadata
