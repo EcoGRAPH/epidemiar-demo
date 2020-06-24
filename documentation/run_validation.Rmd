@@ -12,13 +12,13 @@ output:
     df_print: paged
   pdf_document: null
   toc: yes
-subtitle: For epidemia-demo v2.1 using epidemiar v2.1.0
+subtitle: For epidemia-demo v3.0 using epidemiar v3.1.0
 number_sections: yes
 toc_depth: 2
 urlcolor: blue
 ---
   
-  ```{r setup, include=FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -28,19 +28,19 @@ Validation and assessment have been built into the epidemiar package in the func
 
 Evaluation can be made for one through n-week ahead predictions, and include comparisons with two naive models: persistence of last known value, and average cases from that week of the year.
 
-Building validation into the early warning system provides more opportunities to learn about the model via the validation results. Locations where the models perform well and where they do not can be identified with geographical grouping-level results.
+Building validation into the early warning system provides more opportunities to learn about the model via the validation results. Locations where the models perform well can be identified with geographical grouping-level results.
 
 With on-demand implementation and time-range flexibility, one can also investigate how accuracy changes over time, which is of particular interest in places like Ethiopia with changing patterns and declining trends due to anti-malarial programs.
 
 ## Specific Arguments
 
-The `run_validation()` function takes 4 arguments, plus all the `run_epidemia()` arguments. 
+The `run_validation()` function takes 5 arguments, plus all the `run_epidemia()` arguments. 
 
 * `date_start`: The week to begin validation, can be built with `epidemiar::make_date_yw()` and isoyear and isoweek numbers (or epiweeks, with appropriate modifications).
-* `total_timesteps`: The number of weeks from `week_start` to run the validation.
+* `total_timesteps`: The number of weeks from `date_start` to run the validation. This includes the start week such that 52 weeks would be a one-year validation. 
 * `timesteps_ahead`: To validate 1 through _n_-week ahead predictions (the number of weeks into the future the predictions are made).
 * `reporting_lag`: Default of 0 weeks, but can be adjusted for different assumptions about the length of the lag in data reporting. Enter the number of timesteps to simulate reporting lag. For instance, if you have weekly data, and a `reporting_lag` of 1 week, and are working with a timesteps_ahead of 1 week, then that is the functional equivalent to reporting lag of 0, and timesteps_ahead of 2 weeks. I.e. You are forecasting next week, but you don’t know this week’s data yet, you only know last week’s numbers.
-* `skill_test`: TRUE/FALSE on whether to also run the naive models for comparison: Persistence - last known value carried forward n-appropriate weeks, and Average Week - the average cases from that week of the week (per geographic grouping). This will create skill scores showing the relative improvement of the forecast model over the naive model (negative: naive performs better, 0: no improvement, positive values up to 1: relative improvement).
+* `skill_test`: TRUE/FALSE on whether to also run the naive models for comparison: Persistence - last known value carried forward n-appropriate weeks, and Average Week - the average cases from that week of the week (per geographic grouping). This will create skill scores showing the relative improvement of the forecast model over the naive model (negative: naive performs better, 0: no improvement, positive values up to 1: relative improvement). Default is TRUE. 
 
 
 ## Other Arguments & Adjustments
@@ -54,8 +54,7 @@ It is envisioned that users can take their usual script for running EPIDEMIA for
 
 ## Statistics
 
-Validation statistics included Mean Squared Error (`MSE`), Mean Absolute Error (`MAE`), and R^2^ (`R2`, variance
-explained). Where ‘obs’ is atual observed value and ‘pred’ is the predicted forecast values:
+Validation statistics included Mean Squared Error (`MSE`), Mean Absolute Error (`MAE`), and R^2^ (`R2`, variance explained). Where ‘obs’ is atual observed value and ‘pred’ is the predicted forecast values:
 
 * $MAE = mean(|obs - pred|)$
 * $RMSE = sqrt(mean((obs - pred)^{2}))$
@@ -83,10 +82,10 @@ Results are returned in a list.
 models if run with skill test comparison). Each model entry will have three items:
   + `validation_overall`: Overall model accuracy statistics per timestep_ahead (week in the future)
   + `validation_grouping`: Accuracy statistics per geographic grouping per timestep_ahead
-  + `validation_timeseries`: In beta-testing. Early version of a rolling validation results over time
+  + `validation_timeseries`: In beta-testing, an early version of a rolling validation results over time
+  + `validation_perweek`: Validation results per week entry (per geographic group per timestep_ahead)
   
 3. `metadata`: Metadata on the parameters used to run validation and the date it was run.
-
 
 
 
@@ -102,4 +101,15 @@ models if run with skill test comparison). Each model entry will have three item
 4. Sections 2 and 3 load the libraries and the data. These are the same as if you were about to run a report. 
 
 5. Section 4 & 5 will run the validations per species. The two species (P. falciparum + mixed, and P. vivax) have been separated into their own section. Because this runs the forecasts for *each week* in the evaluation period, this will take a while to run. Each section will also create and save the formatted pdf report as well (using the Sweave formatting script `validation/epidemia_validation.Rnw`). The files will automatically save with names indicating the case field, year-week start, and number of weeks evaluated. 
+
+
+## Formatted report
+Validation report:
+The formatted validation report has five main sections: 1) skill score summaries, 2) maps of skill statistics, 3) skill per woreda over week-ahead predictions, 4) accuracy statistics table, and 5) week-ahead time-series graphs per woreda.
+
+* Skill score summaries: This graph shows an overall skill score summary of the forecast model over the naïve models per the number of weeks-ahead into the future the forecast is being done (i.e. the prediction made for the next week, for two weeks ahead, etc.) 
+* Maps of skill statistics: This section is split into two, showing the skill statistic of the forecast model over each of the naïve models separately. Each subsection contains a separate set of maps displaying the three skill scores (MAE, RMSE and R2) for each week-ahead prediction.
+* Skill per woreda: These graphs are similar to the overall skill score summary graph in the first section, but are the skill score summaries per woreda.
+* Accuracy statistics: This is a table of the accuracy statistics values (MAE, RMSE, and R2) for the forecast model over each week-ahead prediction.
+* Week-ahead time-series: These graphs show the observed case counts and each of the week-ahead predictions as a series (i.e. all one-week ahead predictions are a series, all two-week, etc.) for the forecast model. These graphs can be used to visualize how the predictions are behaving n-number of weeks ahead of the target forecast week.
 

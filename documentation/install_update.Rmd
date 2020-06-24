@@ -1,20 +1,21 @@
 ---
-title: |
-  | How to Install and Update 
-  | the EPIDEMIA Forecasting System
-subtitle: 
+title: "| How to Install and Update \n| the EPIDEMIA Forecasting System\n"
 author: |
   | Dawn Nekorchuk, Michael Wimberly, and EPIDEMIA Team Members
   | Department of Geography and Environmental Sustainability, University of Oklahoma
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
-output: 
+output:
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
   pdf_document:
-    toc: true
+    toc: yes
     toc_depth: 2
-    number_sections: true
+    number_sections: yes
+subtitle: null
 urlcolor: blue
-
 ---
 
 ```{r setup, include=FALSE}
@@ -29,7 +30,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 If you are only running with the given environmental data, you do not need the Google Earth Engine account.
 
-Environmental data will be obtained from Google Earth Engine (GEE). GEE is a cloud-based platform for hosting satellite imagery. GEE also provides tools to process these remote sensing images and other geospatial datasets. Instead of downloading the raw satellite files and processing them on your own computer, which requires significant internet bandwidth and processing power, these steps are done in the cloud. And at the end, we only need to download the summarized output. 
+Environmental data can be obtained from Google Earth Engine (GEE). GEE is a cloud-based platform for hosting satellite imagery. GEE also provides tools to process these remote sensing images and other geospatial data sets. Instead of downloading the raw satellite files and processing them on your own computer, which requires significant internet bandwidth and processing power, these steps are done in the cloud. And at the end, we only need to download the summarized output. 
 
 1. Request a GEE account: sign up at https://earthengine.google.com/.
 If you do not already have a Google Account, it will prompt you to make one. Your Google account will also contain a Google Drive account, which is where the GEE data will be downloaded to. 
@@ -86,13 +87,13 @@ knitr::include_graphics("figs/install_packages.JPG")
 
 The EPIDEMIA team has developed a R package called `epidemiar` for modeling malaria and creating the forecasting report. 
 
-1. We suggest installing using `remotes::install_github()` function as this will automatically install dependent packages (the modified build_opts will allow vignettes to be installed also).
+1. We suggest installing using `remotes::install_github()` function as this will automatically install dependent packages (the modified build_opts should allow vignettes to be installed also).
 Go to https://github.com/EcoGRAPH/epidemiar/releases/latest, and copy the suggest command for installation.
-The command will look similar to the one below, which would install version "v.2.0.0". (But make sure to get the latest version!)
+The command will look similar to the one below, which would install version "v.3.1.0". (But make sure to get the latest version!)
 Note: You may need to install `devtools` and `remotes` packages first, if you have not done so already. 
 
 ```{r, eval = FALSE}
-remotes::install_github("ecograph/epidemiar@v2.0.0", build = TRUE, 
+remotes::install_github("ecograph/epidemiar@v3.1.0", build = TRUE, 
                         build_opts = c("--no-resave-data", "--no-manual"))
 ```
 
@@ -129,9 +130,13 @@ knitr::include_graphics("figs/latest_demo_release.JPG")
 2. Unzip the file to your Desktop or other preferred directory. You must have full read/write permissions to the directory, so do not use a system folder like Program Files. Unzipping the file will create a folder in the directory you choose. The folder name will have the version number in the file name, e.g. `epidemiar-demo-2.0.0`. This will help you keep track of which version of the project you are using. 
 
 
-## Google Earth Engine (GEE) script
+## Google Earth Engine (GEE) scripts
 
-1. In the epidemiar-demo-version# folder ([created in this step](#epidemiar-demo-project)), there is a subfolder named `GEE`. Inside this subfolder will be a text file with the latest Amhara summary GEE script.
+In the demo project, we show three different ways of interacting with GEE to acquire environmental data.
+
+### Option A) GEE Code Editor
+
+1. In the epidemiar-demo-version# folder ([created in this step](#epidemiar-demo-project)), there is a subfolder named `GEE`. Inside this subfolder will be a text file with the latest Amhara summary GEE script (EPIDEMIA_GEE_script_v{X.X}.txt.
 
 2. Navigate to https://code.earthengine.google.com/. 
 
@@ -142,6 +147,18 @@ knitr::include_graphics("figs/GEE_newscript.JPG")
 ```
 
 3. Click on save, and name it the same as the text file.
+
+### Option B) GEE App
+
+We have turned the GEE code in an app that does not require a GEE account, but it is limited to short date ranges for data download: https://dawneko.users.earthengine.app/view/epidemiar-demo
+
+### Option C) Python connection
+
+This option is from a different project, so the data is not compatible with this demo project, but it is here as a demonstration of how you can link R to python to GEE, and therefore can request GEE data from a command in R rather than going to an external application. A GEE account is required, as well as addition python software installed. 
+
+1. See the installation directions in https://github.com/EcoGRAPH/epidemia-gee/releases/latest for how to set up your system.
+
+2. Look at the script in this project: /GEE/EPIDEMIA_GEE_python.R. 
 
 \newpage
 # Updating 
@@ -163,7 +180,7 @@ If you are only running with the given environmental data, you do not need to ru
 
 Updates to the GEE script will be included in the `epidemiar-demo` project in the folder `GEE`. The new version will need to be copied into your Google Earth Engine account. 
 
-1. Update the `epidemiar-demo` project with the instructions [above](#updating-epidemiar-demo-project). The new GEE script will be in `epidemiar-demo/GEE` folder, named like `EPIDEMIA_GEE_script_v2.1.txt`. The version number will change with new updates.
+1. Update the `epidemiar-demo` project with the instructions [above](#updating-epidemiar-demo-project). The new GEE script will be in `epidemiar-demo/GEE` folder, named like `EPIDEMIA_GEE_script_v3.1.txt`. The version number will change with new updates.
 
 2. Navigate to https://code.earthengine.google.com/. 
 
