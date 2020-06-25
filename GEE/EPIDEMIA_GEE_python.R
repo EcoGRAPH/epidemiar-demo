@@ -2,7 +2,7 @@
 #
 # This script can be used to request environmental data from GEE
 #   by going through the R package reticulate to a 
-#   custom python package, epidemia-gee, nd requesting our custom 
+#   custom python package, epidemia-gee, and requesting our custom 
 #   processed summarized daily data to be downloaded to a Google Drive.
 #
 # Please see the install instructions for epidemia-gee, including
@@ -17,12 +17,12 @@
 #
 # #####################################################################
 
-#Load packages
+#load packages
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(reticulate)
 
-#Use the conda environment we set up earlier in Anaconda
-use_condaenv("gee-demo", conda = "auto",required = TRUE)
+#use the conda environment we set up earlier in Anaconda
+use_condaenv("gee-demo", conda = "auto", required = TRUE)
 
 #import the Earth Engine library
 ee <- import("ee")          
@@ -30,7 +30,7 @@ ee <- import("ee")
 ee$Initialize()
 
 #import the epidemia-gee package
-E <- import("Ethiopia")  
+eth_gee <- import("Ethiopia")  
 
 #Now we have access to the gee_to_drive() function
 #   which accepts a start and end date
@@ -39,9 +39,9 @@ E <- import("Ethiopia")
 #   in the Google Drive of the authenticated account.
 
 #example 1: start date of Jan 1, 2009 & end date of Feb 1, 2009
-E$Et$gee_to_drive('2009-01-01','2009-02-01')  
+eth_gee$Et$gee_to_drive('2009-01-01','2009-02-01')  
 
 #example 2: start date of April 23, 2019 & end date of June 1, 2020
-E$Et$gee_to_drive('2019-04-23','2020-06-01') 
+eth_gee$Et$gee_to_drive('2019-04-23','2020-06-01') 
 
 
