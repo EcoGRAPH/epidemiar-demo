@@ -66,7 +66,7 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and event detection parameters
-source("data/epidemiar_settings_amhara.R")
+source("data/epidemiar_settings_demo.R")
 
 # ## OPTIONAL: Date Filtering for running certain (past) week's report
 # req_date <- epidemiar::make_date_yw(year = 2016, week = 24, weekday = 7) #week is always end of the week, 7th day

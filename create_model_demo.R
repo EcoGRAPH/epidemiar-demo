@@ -64,7 +64,7 @@ env_ref_data <- readr::read_csv("data/env_ref_data_2002_2018.csv", col_types = r
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecasting and report settings file
-source("data/epidemiar_settings_amhara.R")
+source("data/epidemiar_settings_demo.R")
 
 # 3. Run epidemia & create model only ---------------------------------------
 

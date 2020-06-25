@@ -77,6 +77,13 @@ epi_data <- corral_epidemiological(report_woreda_names = report_woredas$woreda_n
 # read & process environmental data for woredas in report
 env_data <- corral_environment(report_woredas = report_woredas)
 
+## Optional: For slight speed increase, 
+# date filtering to remove older environmental data.
+# older env data was included to demo epidemiar::env_daily_to_ref() function.
+env_start_date <- epidemiar::make_date_yw(year = 2012, week = 1, weekday = 7) #week is always end of the week, 7th day
+env_data <- env_data %>%
+  filter(obs_date >= env_start_date)
+
 # read in climatology / environmental reference data
 env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 
@@ -84,7 +91,7 @@ env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
 env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 # read in forecast and modeling parameters
-source("data/epidemiar_settings_amhara.R")
+source("data/epidemiar_settings_demo.R")
 
 
 # 4. Validation P. falciparum ------------------------------------------------------

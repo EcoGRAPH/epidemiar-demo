@@ -12,6 +12,8 @@
 #
 # ###############################################################################################
 
+## IMPORTANT: If you add/remove parameters - 
+#   make sure to change the report_settings list creation at the bottom
 
 # 1. Set up general report and epidemiological parameters ----------
 
@@ -30,8 +32,10 @@ epi_date_type <- "weekISO"
 #interpolate epi data?
 epi_interpolate <- TRUE
 
-#use a transformation on the epi data for modeling?
-epi_transform <- "none"
+#use a transformation on the epi data for modeling? ("none" if not)
+#Note that this is closely tied with the model family parameter below
+#   fc_model_family <- "gaussian()"
+epi_transform <- "log_plus_one"
 
 #model runs and objects
 model_run <- FALSE
@@ -55,7 +59,9 @@ env_anomalies <- TRUE
 # 3. Set up forecast controls -------------------------------------
 
 #Model choice and parameters
-fc_model_family <- "poisson()"
+#Note that this is closely tied with the epi_transform <- "log_plus_one"
+# parameter in the report and epidemiological parameter settings
+fc_model_family <- "gaussian()"
 
 #Spline choice for long-term trend and lagged environmental variables
 #fc_splines <- "modbs" #modified b-splines, faster but not as good as thin plate
@@ -111,6 +117,7 @@ pfm_report_settings <- epidemiar::create_named_list(report_period,
                                                     report_inc_per,
                                                     epi_date_type,
                                                     epi_interpolate,
+                                                    epi_transform,
                                                     model_run,
                                                     env_var = pfm_env_var,
                                                     env_lag_length,
@@ -128,7 +135,8 @@ pv_report_settings <- epidemiar::create_named_list(report_period,
                                                    report_value_type,
                                                    report_inc_per,
                                                    epi_date_type,
-                                                   epi_interpolate,
+                                                   epi_interpolate, 
+                                                   epi_transform,
                                                    model_run,
                                                    env_var = pv_env_var,
                                                    env_lag_length,
