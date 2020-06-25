@@ -68,7 +68,6 @@ fc_model_family <- "gaussian()"
 fc_splines <- "tp" #requires clusterapply companion package
 
 #Include seasonal cyclical in modeling? 
-#Yes, for seasonality in our Poisson model
 fc_cyclicals <- TRUE
 
 #forecast 8 weeks into the future
