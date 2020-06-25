@@ -181,13 +181,14 @@ if (exists("pfm_reportdata") & exists("pv_reportdata")){
                     create_report = TRUE,
                     #which Rnw file to use to create pdf
                     formatting_file = "epidemia_report_demo.Rnw",
-                    #append tag to file name
+                    #append tag to file name (optional)
                     file_name_postfix = "synthetic_data",
                     #show the pdf immediately after creating
                     show_report = TRUE)
   
 } else {
-  message("Error: Report data for P. falciparum and/or P. vivax have not been generated and are missing.")
+  message("Error: Report data for P. falciparum and/or P. vivax 
+          have not been generated and are missing.")
 }
 
 
