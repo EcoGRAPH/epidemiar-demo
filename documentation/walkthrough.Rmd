@@ -5,7 +5,7 @@ author: |
   | Department of Geography and Environmental Sustainability, University of Oklahoma
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
-subtitle: For epidemia-demo v3.0 using epidemiar v3.1.0
+subtitle: For epidemia-demo v3.0 using epidemiar v3.1.0 and clusterapply v1.0.0
 output:
   pdf_document:
     number_sections: yes
@@ -38,10 +38,12 @@ This detailed walk-through will explain each section of the `run_epidemiar_demo.
 
 All surveillance data in this demo is *simulated* and for *demo use only*. The epidemiological data are artificial and should not be used for research of public health purposes. The environmental data, from Google Earth Engine, is real. This walk-through is adapted from documentation given to our colleagues in Ethiopia. 
 
-For more details on the `epidemiar` package, see the vignettes:
+For more details on the `epidemiar` package, see the vignettes (in package, or attached to the latest release in Github as pdfs:
 
-* Overview: `vignette("overview-epidemiar", package = "epidemiar")`, and
-* Input data and modeling parameters: `vignette("data-modeling", package = "epidemiar")`.  
+* Overview: `vignette("overview-epidemiar", package = "epidemiar")`
+* Input data and modeling parameters: `vignette("data-modeling", package = "epidemiar")`
+* Validation guide: `vignette("validation-assessment", package = "epidemiar")`
+* Output report data review: `vignette("output-report-data", package = "epidemiar")`
 
 This demo is an example of how data and settings can be organized to feed into `epidemiar::run_epidemia()`. 
 
@@ -62,6 +64,7 @@ We are going to use R scripts to:
 * set some model and event detection parameters
 * call the epidemiar functions to run the model, forecast, event detection, produce & save the report data ouput
 * send the results to a formatting script (`report/epidemia_report_demo.Rnw`, a Sweave file) to create the final pdf report.
+* We can also do the same for validation, see the Validation Guide for epidemiar-demo
 
 If you have not installed `epidemiar`, or MikTeX ("Install missing packages on-the-fly" = Yes; and restart the computer) yet, please see the Install & Update Guide (`"documentation/install_update.pdf"`) for details on those steps. 
 
@@ -81,11 +84,11 @@ knitr::include_graphics("C:/Users/neko0001/Work/R_dev/epidemiar-demo/documentati
 
 # R scripts
 
-Open the `epidemiar_demo.Rproj`. From here, there are three scripts of major importance. 
+Open the `epidemiar_demo.Rproj`. From here, there are three scripts of major importance for forcasting. 
 
 1. The script `run_epidemiar_demo.R` will bring in data, run and create the model and forecasts, and generate a pdf report. 
 2. The script `create_model_demo.R` generates only the forecasting model, which can be used in subsequent runs of `run_epidemiar_demo.R`, saving processing time.
-3. The parameter file `data/epidemiar_settings_amhara.R` contains the common parameters for both scripts. 
+3. The parameter file `data/epidemiar_settings_demo.R` contains the common parameters for both scripts. 
 
 
 ## `run_epidemiar_demo.R`: Part I
@@ -94,7 +97,7 @@ This script is divided into sections:
 
 1. Loading packages & functions
 2. Reading in the data
-3. Run epidemia & create report data
+3. Run EPIDEMIA forecasting & create report data
 4. Merge species data, save, and create pdf report
 
 Part I covers the first two sections. 
@@ -220,7 +223,8 @@ The environmental reference / climate data file `"data/env_ref_data_2002_2018.cs
 
 ```{r read-envref}
 # read in climatology / environmental reference data
-env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", col_types = cols())
+env_ref_data <- read_csv("data/env_ref_data_2002_2018.csv", 
+                         col_types = cols())
 ```
 
 The demo project contains the large history of daily environmental data to also demonstrate the `epidemiar::env_daily_to_ref()` function that will create a reference/climatology data set from daily data. Because of processing time (especially for long histories), it is recommended that you run this infrequently to generate a reference dataset that is then saved to be read in later, rather than regenerated each time. The `week_type` of this function defaults to "ISO" for ISO8601/WHO standard week of year and should match the week type for the epidemiological data. This function also requires the `env_info` data, see next section. 
@@ -257,12 +261,12 @@ env_info <- read_xlsx("data/environ_info.xlsx", na = "NA")
 
 ```{r read-parameters}
 # read in forecast and event detection parameters
-source("data/epidemiar_settings_amhara.R")
+source("data/epidemiar_settings_demo.R")
 ```
 
 This parameter file contains all the report settings for the overall report, forecasting, and early detection. If a pre-built model is used, this should be the same parameters as when the model was generated. See next section for a full description of this file. 
 
-## `model_parameters_amhara.R`
+## `model_parameters_demo.R`
 
 The parameter file contains all the settings for the overall report, model, forecasting, and early detection. 
 
@@ -301,12 +305,19 @@ The Amhara dataset had few missing values, which we linearly interpolate. If the
 #date type in epidemiological data
 epi_date_type <- "weekISO"
 
-#use a transformation on the epi data for modeling?
-epi_transform <- "none"
-
 #interpolate epi data?
 epi_interpolate <- TRUE
 ```
+
+In this demo model, we are using a Gaussian model, with a transformation of log+1 on the case counts (and back-transform after predicting). Here we set the transformation. The default is "none" for no transformation. 
+
+```{r epi-xform}
+#use a transformation on the epi data for modeling? ("none" if not)
+#Note that this is closely tied with the model family parameter below
+#   fc_model_family <- "gaussian()"
+epi_transform <- "log_plus_one"
+```
+
 
 Depending on the type of model being run, it may take several minutes for the model to be fit and generated. There is an option to do a model run, which will only create the regression object(s). This can then be passed back in via `model_cached` to skip model generation. See the larger optional Model Caching section below. Our demo project does not by default use model runs or model caching, and thus are set as such in the parameter file here:
 
@@ -329,15 +340,17 @@ For the _P. falciparum_ and mixed malaria model, the environmental variables are
 
 ```{r env-vars}
 #read in model environmental variables to use
-pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", col_types = cols())
-pv_model_env <- read_csv("data/vivax_model_envvars.csv", col_types = cols())
+pfm_model_env <- read_csv("data/falciparum_model_envvars.csv", 
+                          col_types = cols())
+pv_model_env <- read_csv("data/vivax_model_envvars.csv", 
+                         col_types = cols())
 ```
 
 
 There are also two other parameters directly related to the environmental variables: the total length of the lags we want to consider for the environmental conditions, and whether to use the raw values or rather the amount the values deviate from normal (i.e. the anomalies). 
 
 We want to use the previous 181 days, the "lag length", of environmental data in modeling the effects of the environmental variables on malaria case numbers. Each woreda and week is associated with environmental data on the day the week began, up to 180 days in the past, so that each woreda-week has a 181-day history of weather data. 
-When using `fc_splines = "tp"`, a smooth term is created for the 181-day history, for example `s(lag, by = totprec, bs = "tp")`, where lag is a simple 181 counter and totprec is a matrix of 181 daily values of precipitation. Importantly, in order to include cluster as a factor for the environmental variables, a separate model is created for each cluster (see description of clusters below). This is done through functions in the new EPIDEMIA system package `clusterapply`. To allow for clusters with only one geogroup, a fall-back equation built around one geogroup is generated and passed to be used if the original model fails.
+When using `fc_splines = "tp"` (set in the next section for forecasting, see below), a smooth term is created for the 181-day history, for example `s(lag, by = totprec, bs = "tp")`, where lag is a simple 181 counter and totprec is a matrix of 181 daily values of precipitation. Importantly, in order to include cluster as a factor for the environmental variables, a separate model is created for each cluster (see description of clusters below). This is done through functions in the new EPIDEMIA system package `clusterapply`. To allow for clusters with only one geogroup, a fall-back equation built around one geogroup is generated and passed to be used if the original model fails.
 When using `fc_splines = "modbs"` a distributed lag basis is created with the natural cubic splines function, including intercept, with knots at 25%, 50%, and 75% of the lag length. The 5 basis functions that result are multiplied by each woreda's history, so that there are just 5 summary statistics, instead of 181, for every combination of woreda, week, and environmental co-variate. 
 
 There is a switch to use the raw values of environmental variables or to use the anomaly values (residuals from a simple bam model with only geographic area (group) and day of year). The default is FALSE, but for our demo Poisson model we use the anomalies. 
@@ -354,23 +367,27 @@ env_anomalies <- TRUE
 
 ### Set up the forecast controls
 
-In our demo version, we use a Poisson model, which we designate by passing the model family function `poisson()` to the `fc_model_family` parameters. The EPIDEMIA system uses `mgcv::bam()` for regression, and can accept any quadratically penalized GLM model family and also the extended families in `family.mgcv`. 
+In our demo version, we use a Gaussian model, which we designate by passing the model family function `gaussian()` to the `fc_model_family` parameters. The EPIDEMIA system uses `mgcv::bam()` for regression, and can accept any quadratically penalized GLM model family and also the extended families in `family.mgcv`. 
 
-For the long-term trend per woreda, and the lagged environmental co-variates by woreda and cluster, we offer two different spline methods for the regression terms. 1) With the installation of a companion package (`clusterapply`), thin plate splines are used instead (`report_settings$fc_splines = "tp"` and the default when `clusterapply` is installed). The `clusterapply` package is our wrapper over some of the mgcv functions so that we can use thin plate splines for each lagged environmental variable by cluster. 2) Using modified b-splines (`report_settings$fc_splines = "modbs"`), a distributed lag basis is created with the natural cubic splines function (ns, splines library), including intercept, with knots at 25%, 50%, and 75% of the lag length. The 5 basis functions that result are multiplied by each group's history, so that there are just 5 summary statistics, instead of lag length, for every combination of group, week, and environmental anomaly covariate. 
+For the long-term trend per woreda, and the lagged environmental co-variates by woreda and cluster, we offer two different spline methods for the regression terms. 1) With the installation of a companion package (`clusterapply`), thin plate splines are used instead (`report_settings$fc_splines = "tp"` and the default when `clusterapply` is installed). The `clusterapply` package is our specialized wrapper over some of the mgcv functions so that we can use thin plate splines for each lagged environmental variable _by cluster_. 2) Using modified b-splines (`report_settings$fc_splines = "modbs"`), a distributed lag basis is created with the natural cubic splines function (ns, splines library), including intercept, with knots at 25%, 50%, and 75% of the lag length. The 5 basis functions that result are multiplied by each group's history, so that there are just 5 summary statistics, instead of lag length, for every combination of group, week, and environmental anomaly co-variate. We have found that thin plate splines are more effective at capturing complex, non-linear relationships and our preliminary analyses show that using thin plate splines produce better predictions without over-fitting.
 
-In our Poisson model for malaria in Amhara, we do add a cyclical term based on day of year (doy) to the regression model: `s(doy, bs = "cc", by = woreda_name)`, a cubic spline smooth term per woreda. 
-For our demo report, we extend the forecast out for 8 weeks past known epidemiological data. 
+The demo model for synthetic malaria data in Amhara is a Gaussian, and note that the `epi_transform` parameter from earlier is closely tied to the model choice parameters here. 
+
+The demo model also includes a cyclical term based on day of year (doy) to the regression model: `s(doy, bs = "cc", by = woreda_name)`, a cubic spline smooth term per woreda. 
+
+For the forecast report, we extend the forecast out for 8 weeks past known epidemiological data. There is another available parameter, `fc_start_date` to set a specific week to start forecasting. This is discussed in the Optional settings at the beginning of Part II of run_epidemiar_demo.R script walkthrough below. 
 
 ```{r fc-models-length}
 #Model choice and parameters
-fc_model_family <- "poisson()"
+#Note that this is closely tied with the epi_transform <- "log_plus_one"
+# parameter in the report and epidemiological parameter settings
+fc_model_family <- "gaussian()"
 
 #Spline choice for long-term trend and lagged environmental variables
-#fc_splines <- "modbs" #modified b-splines, faster but tends to over-fit more than thin plate
+#fc_splines <- "modbs" #modified b-splines 
 fc_splines <- "tp" #requires clusterapply companion package
 
 #Include seasonal cyclical in modeling? 
-#Yes, for seasonality in our Poisson model
 fc_cyclicals <- TRUE
 
 #forecast 8 weeks into the future
@@ -388,8 +405,10 @@ Woredas were clustered by the pattern of how the malaria incidence responds to t
 
 ```{r fc-cluster}
 #read in model cluster information
-pfm_fc_clusters <- readr::read_csv("data/falciparum_model_clusters.csv", col_types = readr::cols())
-pv_fc_clusters <- readr::read_csv("data/vivax_model_clusters.csv", col_types = readr::cols())
+pfm_fc_clusters <- readr::read_csv("data/falciparum_model_clusters.csv", 
+                                   col_types = readr::cols())
+pv_fc_clusters <- readr::read_csv("data/vivax_model_clusters.csv", 
+                                  col_types = readr::cols())
 ```
 
 
@@ -418,7 +437,7 @@ ed_summary_period <- 4
 
 Next, we are going to set up the parameters used in the Farrington improved event detection algorithm. We will be using the `farringtonFlexible()` function as implemented in the `surveillance` package. We specify that we are using this algorithm with `ed_method = "farrington"`. Currently, the only other built option is "None" for no event detection. 
 
-The central idea of event detection is to identify when the numer of cases exceeds a baseline threshold, and this detection happens as close to real-time as possible. Event detection is done in a prospective manner, where the algorithm knows past data up to the present. This is different from retrospective methods, where events are identified from historical data. There are many different prospective event detection algorithms. Each algorithm calculates baseline thresholds differently and have different assumptions about the pattern of disease transmission, speed of outbreak development, seasonality, and trends. 
+The central idea of event detection is to identify when the number of cases exceeds a baseline threshold, and this detection happens as close to real-time as possible. Event detection is done in a prospective manner, where the algorithm knows past data up to the present. This is different from retrospective methods, where events are identified from historical data. There are many different prospective event detection algorithms. Each algorithm calculates baseline thresholds differently and have different assumptions about the pattern of disease transmission, speed of outbreak development, seasonality, and trends. 
 
 The Farrington Original method was developed in 1996 and an improved version was released in 2013. The original method is used at Statens Serum Institut in Denmark, Centre for Infections of the Health Protection Agency (HPA) UK, National Institute for Public Health and the Environment (RIVM) the Netherlands (as of 2010). The Farrington methods are based on quasi-Poisson regression, and allows for long-term trend adjustments, seasonality, and re-weighting of past event case numbers. 
 
@@ -456,6 +475,7 @@ Farrington flexible settings:
 * populationOffset: Use population to adjust case numbers
 * noPeriods: break up the year into 10 periods for modeling
 * pastWeeksNotIncluded: Discount the first 4 weeks when testing for events to avoid incorrect results when an event is occuring right at the beginning of the period
+* limit54: (cases, period) for when no alarm should be triggered if there are fewer than these number of cases in the past period. This was not part of our initial parameter investigation, but added later to satisfy a request that thresholds be should even when few cases were happening.
 * thresholdMethod: Use the recommended statistical method for calculating thresholds.
 
 For more details, please run `?surveillance::farringtonFlexible` in the RStudio console to get the help file for this function.  
@@ -466,12 +486,15 @@ For more details, please run `?surveillance::farringtonFlexible` in the RStudio 
 
 Finally, we just put the forecasting controls into a list, so that we have one list object per species with all the controls for the forecasting. Note that `fc_model_family` set in Forecast section is a top-level parameter and separate from the rest of the report_settings.
 
+IMPORTANT: If you have added or removed parameters above, you will need to edit these control lists as well. 
+
 ```{r fc-control-lists}
 pfm_report_settings <- epidemiar::create_named_list(report_period,
                                                     report_value_type,
                                                     report_inc_per,
                                                     epi_date_type,
                                                     epi_interpolate,
+                                                    epi_transform,
                                                     model_run,
                                                     env_var = pfm_env_var,
                                                     env_lag_length,
@@ -489,7 +512,8 @@ pv_report_settings <- epidemiar::create_named_list(report_period,
                                                    report_value_type,
                                                    report_inc_per,
                                                    epi_date_type,
-                                                   epi_interpolate,
+                                                   epi_interpolate, 
+                                                   epi_transform,
                                                    model_run,
                                                    env_var = pv_env_var,
                                                    env_lag_length,
@@ -557,7 +581,9 @@ If previous models have been built, they can be read in here. This will skip the
 # OPTIONAL: If you have created cached models to use instead of generating a new model:
 # selects the model per species with latest file created time
 # pfm
-all_pfm_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pfm.*\\.RDS$"))
+all_pfm_models <- file.info(list.files("data/models/", 
+                                       full.names = TRUE, 
+                                       pattern="^pfm.*\\.RDS$"))
 if (nrow(all_pfm_models) > 0){
   latest_pfm_model <- rownames(all_pfm_models)[which.max(all_pfm_models$ctime)]
   pfm_model_cached <- readRDS(latest_pfm_model)
@@ -565,7 +591,9 @@ if (nrow(all_pfm_models) > 0){
 pfm_report_settings$model_cached <- readRDS(latest_pfm_model)
 
 #pv
-all_pv_models <- file.info(list.files("data/models/", full.names = TRUE, pattern="^pv.*\\.RDS$"))
+all_pv_models <- file.info(list.files("data/models/", 
+                                      full.names = TRUE, 
+                                      pattern="^pv.*\\.RDS$"))
 if (nrow(all_pv_models) > 0){
   latest_pv_model <- rownames(all_pv_models)[which.max(all_pv_models$ctime)]
   pv_model_cached <- readRDS(latest_pv_model)
@@ -661,7 +689,7 @@ if (exists("epi_data") & exists("env_data")){
 ```
 
 
-The processing time depends on how powerful your computer is and the settings used for modeling. Passing in a model reduces the time, since it does not have to calculate the model first.  Expect this to take about 3 to 10 minutes per species on an average computer. 
+The processing time depends on how powerful your computer is and the settings used for modeling. Passing in a model reduces the time, since it does not have to calculate the model first.  Expect this to take about 3 to 10 minutes per species on an average computer or laptop. 
 
 The `run_epidemia()` function returns one object. For _P. falciparum_ we called this object `pfm_reportdata`, and `pv_repordata` for _P. vivax_. The reportdata object is a list of tibbles of the outputs from the modeling, early detection and early warning algorithms, and other results. 
 (Note: In the Amhara implementation, we have two species that we then combine the results before sending it to the formatting script. You could have multiple diseases you are working with, or you could have only one. Your situation will then drive how you code your report formatting script/Rnw file.)
@@ -770,7 +798,7 @@ This lists all the dates, settings, and parameters that were used in the `run_ep
 This is the regression object from the general additive model (GAM, parallelized with BAM) regression. This is only for statistical investigation of the model, and is usually not saved because it very large object. To save it, set the `save_reg` argument of `merge_save_report()` to "TRUE" (default is FALSE).
 
 
-### Aside: Model Only Run
+### Aside: Model Only Run Output
 
 Model runs and model caching is not by default used in the demo model, however all the code necessary to do so is present. 
 
@@ -805,19 +833,20 @@ if (exists("pfm_reportdata") & exists("pv_reportdata")){
                     var_labs = c("pfm","pv"),
                     #save out the report data in the file that the formatting file reads
                     save_file = "report/report_data.RData",
-                    #save out a second copy of the report data with year & week numbers in the name
+                    #save out 2nd copy of report data w/ year & week in the name
                     second_save = TRUE,
                     #create the pdf
                     create_report = TRUE,
                     #which Rnw file to use to create pdf
                     formatting_file = "epidemia_report_demo.Rnw",
                     #append tag to file name (optional)
-                    file_name_postfix = "ARHB",
+                    file_name_postfix = "synthetic_data",
                     #show the pdf immediately after creating
                     show_report = TRUE)
   
 } else {
-  message("Error: Report data for P. falciparum and/or P. vivax have not been generated and are missing.")
+  message("Error: Report data for P. falciparum and/or P. vivax 
+          have not been generated and are missing.")
 }
 ```
 
