@@ -35,7 +35,7 @@ eth_gee <- import("Ethiopia")
 #Now we have access to the gee_to_drive() function
 #   which accepts a start and end date
 #   and requests our daily summarized data for that range.
-# The resulting .csv file will be downloaded to an "Ethiopia" folder 
+# The resulting .csv file will be downloaded to an "Ethiopiadata" folder 
 #   in the Google Drive of the authenticated account.
 
 #example 1: start date of Jan 1, 2009 & end date of Feb 1, 2009
