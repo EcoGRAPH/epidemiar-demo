@@ -8,11 +8,11 @@
 
 # report files & files
 /report/*.RData
-#/report/*.pdf #keep for demo
 /report/*.log
 /report/*.tex
 /report/*.gz
 /report/*.pdf
+!/report/epidemia_report_demo_example_2016W24.pdf
 /report/figure/*
 /validation/*.log
 /validation/*.tex
@@ -26,6 +26,8 @@
 !/validation/validation_demo_test_pv_only_2018W1_52wks.RDS
 !/validation/validation_demo_test_pv_only_2018W1_52wks.pdf
 
+# testing
+/devtest/*
 
 # log files
 *.log
