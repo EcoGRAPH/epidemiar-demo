@@ -170,6 +170,8 @@ if (loop == TRUE & exists("epi_data") & exists("env_data")){
                       create_report = TRUE,
                       #which Rnw file to use to create pdf
                       formatting_file = "epidemia_report_demo.Rnw",
+                      #append tag to file name (optional)
+                      #file_name_postfix = "multirun",
                       #show the pdf immediately after creating
                       show_report = FALSE)
     

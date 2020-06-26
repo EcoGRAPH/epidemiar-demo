@@ -85,11 +85,14 @@ merge_save_report <- function(rpt_data_main = NULL,
        file = save_file)
   message(paste0("Saved results to /", save_file))
   
+  #allowing for empty postfix
+  postfix <- ifelse(file_name_postfix == "", "", paste0("_", file_name_postfix))
+  
   #Optional second save
   if (second_save){
     save_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
                             "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max),
-                            "_", file_name_postfix)
+                            postfix)
     save_name <- tools::file_path_sans_ext(save_file)
     save_ext <- file_ext(save_file)
     second_save_file <- paste0(save_name, save_filetail, ".", save_ext)
@@ -107,7 +110,7 @@ merge_save_report <- function(rpt_data_main = NULL,
     #generate file name
     report_filetail <- paste0("_", isoyear(rpt_data_main$params_meta$report_dates$prev$max), 
                               "W", isoweek(rpt_data_main$params_meta$report_dates$prev$max),
-                              "_", file_name_postfix)
+                              postfix)
     report_output_file <- paste0("report/",
                                  tools::file_path_sans_ext(formatting_file),
                                  report_filetail, ".pdf")
