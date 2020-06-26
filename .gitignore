@@ -21,10 +21,10 @@
 #exceptions for validation
 /validation/*.RDS
 /validation/*.pdf
-!/validation/validation_demo_test_pf_tot_2018W1_52wks.RDS
-!/validation/validation_demo_test_pf_tot_2018W1_52wks.pdf
-!/validation/validation_demo_test_pv_only_2018W1_52wks.RDS
-!/validation/validation_demo_test_pv_only_2018W1_52wks.pdf
+!/validation/validation_example_test_pf_tot_2018W1_52wks.RDS
+!/validation/validation_example_test_pf_tot_2018W1_52wks.pdf
+!/validation/validation_example_test_pv_only_2018W1_52wks.RDS
+!/validation/validation_example_test_pv_only_2018W1_52wks.pdf
 
 # testing
 /devtest/*
