@@ -297,8 +297,6 @@ report_inc_per <- 1000
 
 The epidemiological data is collected based on WHO (ISO-8601 standard) epidemiological weeks.
 
-We do not use any transformation of the case counts for modeling, but there is an option for a "log_plus_one" transformation (and back-transformation), if relevant for certain model families. 
-
 The Amhara dataset had few missing values, which we linearly interpolate. If there are large numbers of missing values, we recommend other methods of interpolation before feeding the data to run_epidemia. 
 
 ```{r epi-general}
@@ -353,14 +351,13 @@ We want to use the previous 181 days, the "lag length", of environmental data in
 When using `fc_splines = "tp"` (set in the next section for forecasting, see below), a smooth term is created for the 181-day history, for example `s(lag, by = totprec, bs = "tp")`, where lag is a simple 181 counter and totprec is a matrix of 181 daily values of precipitation. Importantly, in order to include cluster as a factor for the environmental variables, a separate model is created for each cluster (see description of clusters below). This is done through functions in the new EPIDEMIA system package `clusterapply`. To allow for clusters with only one geogroup, a fall-back equation built around one geogroup is generated and passed to be used if the original model fails.
 When using `fc_splines = "modbs"` a distributed lag basis is created with the natural cubic splines function, including intercept, with knots at 25%, 50%, and 75% of the lag length. The 5 basis functions that result are multiplied by each woreda's history, so that there are just 5 summary statistics, instead of 181, for every combination of woreda, week, and environmental co-variate. 
 
-There is a switch to use the raw values of environmental variables or to use the anomaly values (residuals from a simple bam model with only geographic area (group) and day of year). The default is FALSE, but for our demo Poisson model we use the anomalies. 
+There is a switch to use the raw values of environmental variables or to use the anomaly values (residuals from a simple bam model with only geographic area (group) and day of year). The default is FALSE, but for our demo model we use the anomalies. 
 
 ```{r env-params}
 #set maximum environmental lag length (in days)
 env_lag_length <- 181
 
 #use environmental anomalies for modeling?
-# TRUE for poisson model
 env_anomalies <- TRUE
 ```
 
