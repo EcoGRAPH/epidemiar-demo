@@ -165,7 +165,7 @@ We have turned the GEE code in an app that does not require a GEE account, but i
 
 This option is from a different project, so the data is not compatible with this demo project, but it is here as a demonstration of how you can link R to python to GEE, and therefore can request GEE data from a command in R rather than going to an external application. A GEE account is required, as well as addition python software installed. 
 
-1. See the installation directions in https://github.com/EcoGRAPH/epidemia-gee/releases/latest for how to set up your system.
+1. See the installation directions in https://github.com/EcoGRAPH/epidemia_gee/releases/latest for how to set up your system.
 
 2. Look at the script in this project: /GEE/EPIDEMIA_GEE_python.R. 
 
