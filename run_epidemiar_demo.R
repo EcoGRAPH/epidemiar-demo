@@ -77,8 +77,8 @@ source("data/epidemiar_settings_demo.R")
 
 # ## OPTIONAL: If instead the forecast should be beyond known epi data,
 # then you can set the forecast start date directly
-# pfm_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
-# pv_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, 4, 7)
+# pfm_report_settings$fc_start_date <- epidemiar::make_date_yw(year = 2020, week = 4, weekday = 7)
+# pv_report_settings$fc_start_date <- epidemiar::make_date_yw(2020, week = 4, weekday = 7)
 
 # # OPTIONAL: If you have created cached models to use instead of generating a new model:
 # # selects the model per species with latest file created time
@@ -103,7 +103,7 @@ source("data/epidemiar_settings_demo.R")
 
 
 
-# 3. Run epidemia & create report data ---------------------------------------
+# 3. Run EPIDEMIA & create report data ---------------------------------------
 
 #Run modeling to get report data
 # with check on current epidemiology and environmental data sets
