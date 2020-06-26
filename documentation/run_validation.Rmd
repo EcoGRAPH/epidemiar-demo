@@ -8,11 +8,11 @@ author: |
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
 output:
+  pdf_document: null
   html_document:
     df_print: paged
-  pdf_document: null
   toc: yes
-subtitle: For epidemia-demo v3.0 using epidemiar v3.1.0
+subtitle: For epidemiar-demo v3.0.0 using epidemiar v3.1.0 and clusterapply v1.0.0
 number_sections: yes
 toc_depth: 2
 urlcolor: blue

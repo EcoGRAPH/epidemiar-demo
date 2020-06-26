@@ -5,7 +5,7 @@ author: |
   | Department of Geography and Environmental Sustainability, University of Oklahoma
   | dawn.nekorchuk@ou.edu; mcwimberly@ou.edu
 date: "Updated `r format(Sys.time(), '%B %d, %Y')`"
-subtitle: For epidemia-demo v3.0 using epidemiar v3.1.0 and clusterapply v1.0.0
+subtitle: For epidemiar-demo v3.0.0 using epidemiar v3.1.0 and clusterapply v1.0.0
 output:
   pdf_document:
     number_sections: yes
